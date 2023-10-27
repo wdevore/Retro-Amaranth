@@ -1,0 +1,17 @@
+[dumpfile] "/media/iposthuman/Nihongo/Hardware/Retro-Amaranth/Learning/simulations/bl0x/05_register_bank/bench.vcd"
+[dumpfile_size] 3496660
+[treeopen] top.
+@22
+bench.top.slow_clk$1
+bench.top.pc[31:0]
+bench.top.instr[31:0]
+bench.top.isALUreg
+bench.top.isALUimm
+bench.top.isLoad
+bench.top.isStore
+bench.top.isSystem
+bench.top.rdId[4:0]
+bench.top.rs1Id[4:0]
+bench.top.rs2Id[4:0]
+bench.top.Iimm[31:0]
+bench.top.funct3[2:0]

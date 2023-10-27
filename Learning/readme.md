@@ -13,6 +13,11 @@ Add a udev rule so you can run *icesprog*.
 ```
 ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="1d50", ATTRS{idProduct}=="602b", MODE="0660", GROUP="plugdev", TAG+="uaccess"
 ```
+Then trigger the system:
+```
+$ sudo udevadm control --reload-rules
+$ udevadm trigger
+```
 
 Then:
 
