@@ -1,0 +1,96 @@
+##### Working...
+Simulation =  OFF
+found label 'begin', pc = 0
+found peudo 'LI', pc = 0
+found label 'l0', pc = 4
+found peudo 'CALL', pc = 8
+found peudo 'J', pc = 16
+found label 'wait', pc = 24
+found peudo 'LI', pc = 24
+found label 'l1', pc = 32
+found peudo 'BNEZ', pc = 36
+found peudo 'RET', pc = 40
+  lab@pc=0x000=0 -> BEGIN
+  psu@pc=0x000=0 -> LI
+  enc@pc=0x000 (ADD  (a0, zero, zero)) -> 0b00000000000000000000010100110011
+  lab@pc=0x004=4 -> L0
+  enc@pc=0x004 (ADDI (a0, a0, 1 )) -> 0b00000000000101010000010100010011
+  found labelref
+    resolving label WAIT -> 16
+  psu@pc=0x008=8 -> CALL
+  enc@pc=0x008 (AUIPC (x6, LABELREF(CALL offset wait))) -> 0b00000000000000000000001100010111
+  found labelref
+    resolving label WAIT -> 12
+  enc@pc=0x00c (JALR (x1, x6, LABELREF(CALL offset12 wait))) -> 0b00000001000000110000000011100111
+  found labelref
+    resolving label L0 -> -12
+  psu@pc=0x010=16 -> J
+  enc@pc=0x010 (JAL  (zero, LABELREF(J    imm l0))) -> 0b11111111010111111111000001101111
+  enc@pc=0x014 (EBREAK ()) -> 0b00000000000100000000000001110011
+  lab@pc=0x018=24 -> WAIT
+  psu@pc=0x018=24 -> LI
+  enc@pc=0x018 (ADDI (a1, zero, 1 )) -> 0b00000000000100000000010110010011
+  enc@pc=0x01c (SLLI (a1, a1, 20)) -> 0b00000001010001011001010110010011
+  lab@pc=0x020=32 -> L1
+  enc@pc=0x020 (ADDI (a1, a1, -1)) -> 0b11111111111101011000010110010011
+  found labelref
+    resolving label L1 -> -4
+  psu@pc=0x024=36 -> BNEZ
+  enc@pc=0x024 (BNE  (a1, x0, LABELREF(BNEZ imm l1))) -> 0b11111110000001011001111011100011
+  psu@pc=0x028=40 -> RET
+  enc@pc=0x028 (JALR (x0, x1, 0 )) -> 0b00000000000000001000000001100111
+memory = [1331, 1377555, 791, 16974055, 4284477551, 1048691, 1050003, 21337491, 4294280595, 4261781219, 32871]
+  E: LEDS = 00000
+  E: Writeback x0 = 00000000000000000000000000000000
+-- NEW CYCLE -----------------------
+  F: LEDS = 00000
+  F: pc=0
+  F: instr=0b000000000000000000010100110011
+     ALUreg rd=10 rs1=0 rs2=0 funct3=0
+  E: LEDS = 00000
+  E: Writeback x10 = 00000000000000000000000000000000
+-- NEW CYCLE -----------------------
+  F: LEDS = 00000
+  F: pc=4
+  F: instr=0b000000000101010000010100010011
+     ALUimm rd=10 rs1=10 imm=1 funct3=0
+  E: LEDS = 00001
+  E: Writeback x10 = 00000000000000000000000000000001
+-- NEW CYCLE -----------------------
+  F: LEDS = 00001
+  F: pc=8
+  F: instr=0b000000000000000000001100010111
+  E: LEDS = 00001
+  E: Writeback x6 = 00000000000000000000000000001100
+-- NEW CYCLE -----------------------
+  F: LEDS = 00001
+  F: pc=12
+  F: instr=0b000001000000110000000011100111
+  E: LEDS = 00001
+  E: Writeback x1 = 00000000000000000000000000011100
+-- NEW CYCLE -----------------------
+  F: LEDS = 00001
+  F: pc=24
+  F: instr=0b000000000100000000010110010011
+     ALUimm rd=11 rs1=0 imm=1 funct3=0
+  E: LEDS = 00001
+  E: Writeback x11 = 00000000000000000000000000000001
+-- NEW CYCLE -----------------------
+  F: LEDS = 00001
+  F: pc=28
+  F: instr=0b000001010001011001010110010011
+     ALUimm rd=11 rs1=11 imm=20 funct3=1
+  E: LEDS = 00001
+  E: Writeback x11 = 00000000000100000000000000000000
+-- NEW CYCLE -----------------------
+  F: LEDS = 00001
+  F: pc=32
+  F: instr=0b11111111111101011000010110010011
+     ALUimm rd=11 rs1=11 imm=8589934591 funct3=0
+  E: LEDS = 00001
+  E: Writeback x11 = 00000000000011111111111111111111
+-- NEW CYCLE -----------------------
+  F: LEDS = 00001
+  F: pc=36
+  F: instr=0b11111110000001011001111011100011
+    BRANCH rs1=11 rs2=0
