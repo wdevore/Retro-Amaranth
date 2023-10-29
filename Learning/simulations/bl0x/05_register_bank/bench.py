@@ -1,4 +1,3 @@
-from amaranth import *
 from amaranth.sim import *
 
 from soc import SOC

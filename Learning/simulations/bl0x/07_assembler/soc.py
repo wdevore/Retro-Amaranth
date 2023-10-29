@@ -1,5 +1,4 @@
 import sys
-
 from amaranth.build import Platform
 
 from amaranth.hdl import \
@@ -11,9 +10,9 @@ from amaranth.hdl import \
     Repl, \
     Mux, \
     ClockSignal
-    
 
 from lib.clockworks import Clockworks
+from tools.riscv_assembler import RiscvAssembler
 
 class SOC(Elaboratable):
 
@@ -24,31 +23,33 @@ class SOC(Elaboratable):
         # Signals in this list can easily be plotted as vcd traces
         self.ports = []
 
+        a = RiscvAssembler()
+        a.read("""begin:
+        ADD  x0, x0, x0
+        ADD  x1, x0, x0
+        ADDI x1, x1,  1
+        ADDI x1, x1,  1
+        ADDI x1, x1,  1
+        ADDI x1, x1,  1
+        ADD  x2, x1, x0
+        ADD  x3, x1, x2
+        SRLI x3, x3,  3
+        SLLI x3, x3, 31
+        SRAI x3, x3,  5
+        SRLI x1, x3, 26
+        EBREAK
+        """)
+
+        a.assemble()
+        self.sequence = a.mem
+        print("memory = {}".format(self.sequence))
+
     def elaborate(self, platform: Platform) -> Module:
 
         m = Module()
 
         cw = Clockworks(slow=21, sim_slow=10)
         m.submodules.cw = cw
-
-        # Instruction sequence to be executed
-        sequence = [
-                #       24      16       8       0
-                # .......|.......|.......|.......|
-                #R         rs2  rs1 f3   rd     op
-                #I         imm  rs1 f3   rd     op
-                #S    imm  rs2  rs1 f3  imm     op
-                # ......|....|....|..|....|......|
-                0b00000000000000000000000000110011, # R add  x0, x0, x0
-                0b00000000000000000000000010110011, # R add  x1, x0, x0
-                0b00000000000100001000000010010011, # I addi x1, x1,  1
-                0b00000000000100001000000010010011, # I addi x1, x1,  1
-                0b00000000000100001000000010010011, # I addi x1, x1,  1
-                0b00000000000100001000000010010011, # I addi x1, x1,  1
-                0b00000000000000001010000100000011, # I lw   x2, 0(x1)
-                0b00000000000100010010000000100011, # S sw   x2, 0(x1)
-                0b00000000000100000000000001110011  # S ebreak
-        ]
 
         # Program counter
         pc = Signal(32)
@@ -57,15 +58,15 @@ class SOC(Elaboratable):
         instr = Signal(32, reset=0b0110011)
 
         # Instruction memory initialised with above 'sequence'
-        mem = Array([Signal(32, reset=x) for x in sequence])
+        mem = Array([Signal(32, reset=x, name="mem") for x in self.sequence])
 
         # Register bank
-        regs = Array([Signal(32) for x in range(32)])
+        regs = Array([Signal(32, name="x"+str(x)) for x in range(32)])
         rs1 = Signal(32)
         rs2 = Signal(32)
 
-        writeBackData = C(0)
-        writeBackEn = C(0)
+        # ALU registers
+        aluOut = Signal(32)
 
         # Opcode decoder
         isALUreg = (instr[0:7] == 0b0110011)
@@ -89,23 +90,46 @@ class SOC(Elaboratable):
         # Register addresses decoder
         rs1Id = (instr[15:20])
         rs2Id = (instr[20:25])
-        rdId = ( instr[7:12])
+        rdId =  (instr[7:12])
 
-        # Function code decoder
+        # Function code decdore
         funct3 = (instr[12:15])
         funct7 = (instr[25:32])
 
-        # Data write back
-        with m.If(writeBackEn & (rdId != 0)):
-            m.d.slow += regs[rdId].eq(writeBackData)
+        # ALU
+        aluIn1 = rs1
+        aluIn2 = Mux(isALUreg, rs2, Iimm)
+        shamt = Mux(isALUreg, rs2[0:5], instr[20:25])
+
+        with m.Switch(funct3) as alu:
+            with m.Case(0b000):
+                m.d.comb += aluOut.eq(Mux(funct7[5] & instr[5],
+                                          (aluIn1 - aluIn2), (aluIn1 + aluIn2)))
+            with m.Case(0b001):
+                m.d.comb += aluOut.eq(aluIn1 << shamt)
+            with m.Case(0b010):
+                m.d.comb += aluOut.eq(aluIn1.as_signed() < aluIn2.as_signed())
+            with m.Case(0b011):
+                m.d.comb += aluOut.eq(aluIn1 < aluIn2)
+            with m.Case(0b100):
+                m.d.comb += aluOut.eq(aluIn1 ^ aluIn2)
+            with m.Case(0b101):
+                m.d.comb += aluOut.eq(Mux(
+                    funct7[5],
+                    (aluIn1.as_signed() >> shamt),     # arithmetic right shift
+                    (aluIn1.as_unsigned() >> shamt)))  # logical right shift
+            with m.Case(0b110):
+                m.d.comb += aluOut.eq(aluIn1 | aluIn2)
+            with m.Case(0b111):
+                m.d.comb += aluOut.eq(aluIn1 & aluIn2)
 
         # Main state machine
-        with m.FSM(reset="FETCH_INSTR") as fsm:
+        with m.FSM(reset="FETCH_INSTR", domain="slow") as fsm:
             # Assign important signals to LEDS
             m.d.comb += self.leds.eq(Mux(isSystem, 31, (1 << fsm.state)))
             
             with m.State("FETCH_INSTR"):
-                m.d.slow += instr.eq(mem[pc])
+                m.d.slow += instr.eq(mem[pc[2:32]])
                 m.next = "FETCH_REGS"
             with m.State("FETCH_REGS"):
                 m.d.slow += [
@@ -114,8 +138,15 @@ class SOC(Elaboratable):
                 ]
                 m.next = "EXECUTE"
             with m.State("EXECUTE"):
-                m.d.slow += pc.eq(pc + 1)
+                m.d.slow += pc.eq(pc + 4)
                 m.next = "FETCH_INSTR"
+
+        # Register write back
+        writeBackData = aluOut
+        writeBackEn = fsm.ongoing("EXECUTE") & (isALUreg | isALUimm)
+
+        with m.If(writeBackEn & (rdId != 0)):
+            m.d.slow += regs[rdId].eq(writeBackData)
 
         # Export signals for simulation
         def export(signal, name):
@@ -141,5 +172,12 @@ class SOC(Elaboratable):
             export(rs2Id, "rs2Id")
             export(Iimm, "Iimm")
             export(funct3, "funct3")
+            export(rdId, "rdId")
+            export(rs1, "rs1")
+            export(rs2, "rs2")
+            export(writeBackData, "writeBackData")
+            export(writeBackEn, "writeBackEn")
+            export(aluOut, "aluOut")
+            export((1 << fsm.state), "state")
 
         return m
