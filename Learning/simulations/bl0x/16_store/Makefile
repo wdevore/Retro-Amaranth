@@ -5,6 +5,9 @@ PYTHON = python
 
 ROOTPATH = /media/iposthuman/Nihongo/Hardware/
 
+# The vcd data for viewing
+GTKWAVE_SETTINGS = waveform
+
 # These paths are for building in a shell. VSCode uses .env file to specify paths.
 PATHS := ${ROOTPATH}amaranth-boards
 PATHS := ${PATHS}:${ROOTPATH}/Retro-Amaranth/Learning/simulations/bl0x

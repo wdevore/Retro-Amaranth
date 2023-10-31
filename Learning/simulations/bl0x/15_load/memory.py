@@ -46,6 +46,7 @@ class Memory(Elaboratable):
         self.mem_rdata = Signal(32)
         self.mem_rstrb = Signal()
 
+        # 100 Word-address = 400 Byte-address
         while(len(self.mem) < 100):
             self.mem.append(0)
         
@@ -53,10 +54,13 @@ class Memory(Elaboratable):
         self.mem.append(0x08070605)
         self.mem.append(0x0c0b0a09)
         self.mem.append(0xff0f0e0d)
+        print("mem at 400: {}".format(self.mem[100]))
 
+        print("Mem dump: -----------------------------")
         print(self.mem)
+        print("Mem dump: -----------------------------")
 
-    def elaborate(self, platform):
+    def elaborate(self, platform: Platform) -> Module:
         m = Module()
 
         with m.If(self.mem_rstrb):

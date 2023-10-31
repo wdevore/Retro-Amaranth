@@ -16,14 +16,10 @@ class CPU(Elaboratable):
         self.mem_addr = Signal(32)
         self.mem_rstrb = Signal()
         self.mem_rdata = Signal(32)
+        self.mem_wdata = Signal(32)
+        self.mem_wmask = Signal(4)
         self.x10 = Signal(32)
         self.fsm = None
-        self.memByteAccess = Signal()
-        self.memHalfwordAccess = Signal()
-        self.loadHalfword = Signal(16)
-        self.loadByte = Signal(8)
-        self.loadSign = Signal()
-        self.loadData = Signal(32)
 
     def elaborate(self, platform: Platform) -> Module:
         m = Module()
@@ -86,13 +82,20 @@ class CPU(Elaboratable):
             return Cat(signal, Repl(sign, n))
 
         # Immediate format decoder
-        Uimm = Cat(Repl(0, 12), instr[12:32])
-        Iimm = Cat(instr[20:31], Repl(instr[31], 21))
-        Simm = Cat(instr[7:12], instr[25:31], Repl(instr[31], 21))
-        Bimm = Cat(0, instr[8:12], instr[25:31], instr[7],
-            Repl(instr[31], 20))
-        Jimm = Cat(0, instr[21:31], instr[20], instr[12:20],
-            Repl(instr[31], 12))
+        Uimm = Signal(32)
+        Iimm = Signal(32)
+        Simm = Signal(32)
+        Bimm = Signal(32)
+        Jimm = Signal(32)
+        m.d.comb += [
+            Uimm.eq(Cat(Repl(0, 12), instr[12:32])),
+            Iimm.eq(Cat(instr[20:31], Repl(instr[31], 21))),
+            Simm.eq(Cat(instr[7:12], instr[25:31], Repl(instr[31], 21))),
+            Bimm.eq(Cat(0, instr[8:12], instr[25:31], instr[7],
+                Repl(instr[31], 20))),
+            Jimm.eq(Cat(0, instr[21:31], instr[20], instr[12:20],
+                Repl(instr[31], 12)))
+        ]
         self.Iimm = Iimm
 
         # Register addresses decoder
@@ -110,16 +113,16 @@ class CPU(Elaboratable):
         self.funct3 = funct3
 
         # ALU
-        aluIn1 = Signal.like(self.rs1)
-        aluIn2 = Signal.like(self.rs2)
+        aluIn1 = Signal.like(rs1)
+        aluIn2 = Signal.like(rs2)
         shamt = Signal(5)
         aluMinus = Signal(33)
         aluPlus = Signal.like(aluIn1)
 
         m.d.comb += [
-            aluIn1.eq(self.rs1),
-            aluIn2.eq(Mux((isALUreg | isBranch), self.rs2, Iimm)),
-            shamt.eq(Mux(isALUreg, self.rs2[0:5], instr[20:25]))
+            aluIn1.eq(rs1),
+            aluIn2.eq(Mux((isALUreg | isBranch), rs2, Iimm)),
+            shamt.eq(Mux(isALUreg, rs2[0:5], instr[20:25]))
         ]
 
         m.d.comb += [
@@ -187,12 +190,6 @@ class CPU(Elaboratable):
                          pcPlus4))
 
         # Main state machine
-        # FETCH_INSTR = 0
-        # WAIT_INSTR = 1
-        # FETCH_REGS = 2
-        # EXECUTE = 3
-        # LOAD = 4
-        # WAIT_DATA = 5
         with m.FSM(reset="FETCH_INSTR") as fsm:
             self.fsm = fsm
             with m.State("FETCH_INSTR"):
@@ -202,8 +199,8 @@ class CPU(Elaboratable):
                 m.next = ("FETCH_REGS")
             with m.State("FETCH_REGS"):
                 m.d.sync += [
-                    self.rs1.eq(regs[rs1Id]),
-                    self.rs2.eq(regs[rs2Id])
+                    rs1.eq(regs[rs1Id]),
+                    rs2.eq(regs[rs2Id])
                 ]
                 m.next = "EXECUTE"
             with m.State("EXECUTE"):
@@ -211,17 +208,21 @@ class CPU(Elaboratable):
                     m.d.sync += pc.eq(nextPc)
                 with m.If(isLoad):
                     m.next = "LOAD"
+                with m.Elif(isStore):
+                    m.next = "STORE"
                 with m.Else():
                     m.next = "FETCH_INSTR"
             with m.State("LOAD"):
                 m.next = "WAIT_DATA"
             with m.State("WAIT_DATA"):
                 m.next = "FETCH_INSTR"
+            with m.State("STORE"):
+                m.next = "FETCH_INSTR"
 
         ## Load and store
 
         loadStoreAddr = Signal(32)
-        m.d.comb += loadStoreAddr.eq(self.rs1 + Iimm)
+        m.d.comb += loadStoreAddr.eq(rs1 + Mux(isStore, Simm, Iimm))
 
         # Load
         memByteAccess = Signal()
@@ -230,12 +231,6 @@ class CPU(Elaboratable):
         loadByte = Signal(8)
         loadSign = Signal()
         loadData = Signal(32)
-        self.memByteAccess = memByteAccess
-        self.memHalfwordAccess = memHalfwordAccess
-        self.loadHalfword = loadHalfword
-        self.loadByte = loadByte
-        self.loadSign = loadSign
-        self.loadData = loadData
 
         m.d.comb += [
             memByteAccess.eq(funct3[0:2] == C(0,2)),
@@ -253,12 +248,38 @@ class CPU(Elaboratable):
                         mem_rdata)))
         ]
 
-        # Route PC or loadStoreAddr to memory address
+        # Store
+        m.d.comb += [
+            self.mem_wdata[ 0: 8].eq(rs2[0:8]),
+            self.mem_wdata[ 8:16].eq(
+                Mux(loadStoreAddr[0], rs2[0:8], rs2[8:16])),
+            self.mem_wdata[16:24].eq(
+                Mux(loadStoreAddr[1], rs2[0:8], rs2[16:24])),
+            self.mem_wdata[24:32].eq(
+                Mux(loadStoreAddr[0], rs2[0:8],
+                    Mux(loadStoreAddr[1], rs2[8:16], rs2[24:32])))
+        ]
+
+        store_wmask = Signal(4)
+        m.d.comb += store_wmask.eq(
+                Mux(memByteAccess,
+                    Mux(loadStoreAddr[1],
+                        Mux(loadStoreAddr[0], 0b1000, 0b0100),
+                        Mux(loadStoreAddr[0], 0b0010, 0b0001)
+                        ),
+                    Mux(memHalfwordAccess,
+                        Mux(loadStoreAddr[1], 0b1100, 0b0011),
+                        0b1111)
+                    )
+                )
+
+        # Wire memory address to pc or loadStoreAddr
         m.d.comb += [
             self.mem_addr.eq(
                 Mux(fsm.ongoing("WAIT_INSTR") | fsm.ongoing("FETCH_INSTR"),
                     pc, loadStoreAddr)),
-            self.mem_rstrb.eq(fsm.ongoing("FETCH_INSTR") | fsm.ongoing("LOAD"))
+            self.mem_rstrb.eq(fsm.ongoing("FETCH_INSTR") | fsm.ongoing("LOAD")),
+            self.mem_wmask.eq(Repl(fsm.ongoing("STORE"), 4) & store_wmask)
         ]
 
 
@@ -274,8 +295,7 @@ class CPU(Elaboratable):
 
         self.writeBackData = writeBackData
         self.writeBackEn = writeBackEn
-        self.ongoingE = fsm.ongoing("EXECUTE")
-        self.ongoingWD = fsm.ongoing("WAIT_DATA")
+
 
         with m.If(writeBackEn & (rdId != 0)):
             m.d.sync += regs[rdId].eq(writeBackData)

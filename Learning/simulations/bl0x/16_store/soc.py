@@ -25,11 +25,12 @@ class SOC(Elaboratable):
     def elaborate(self, platform: Platform) -> Module:
 
         m = Module()
-        cw = Clockworks(slow=19, sim_slow=15)
+        
+        cw = Clockworks(slow=19, sim_slow=10)
 
         memory = DomainRenamer("slow")(Memory())
         cpu = DomainRenamer("slow")(CPU())
-
+        
         m.submodules.cw = cw
         m.submodules.cpu = cpu
         m.submodules.memory = memory
@@ -43,6 +44,8 @@ class SOC(Elaboratable):
         m.d.comb += [
             memory.mem_addr.eq(cpu.mem_addr),
             memory.mem_rstrb.eq(cpu.mem_rstrb),
+            memory.mem_wdata.eq(cpu.mem_wdata),
+            memory.mem_wmask.eq(cpu.mem_wmask),
             cpu.mem_rdata.eq(memory.mem_rdata)
         ]
 
