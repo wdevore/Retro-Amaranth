@@ -407,8 +407,8 @@ class RiscvAssembler():
         if self.pc in self.pseudos:
             print("  psu@pc=0x{:03x}={} -> {}".format(self.pc, self.pc,
                                                       self.pseudos[self.pc]))
-        print("  enc@pc=0x{:03x} {} -> 0b{:032b}".format(
-            self.pc, instruction, encoded))
+        print("  enc@pc=0x{:03x} {} -> 0x{:08x} 0b{:032b}".format(
+            self.pc, instruction, encoded, encoded))
         self.pc += 4
         return encoded
 

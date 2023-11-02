@@ -1,0 +1,44 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Tue Oct 31 14:47:21 2023
+[*]
+[dumpfile] "/media/iposthuman/Nihongo/Hardware/Retro-Amaranth/Learning/simulations/bl0x/17_memory_map/bench.vcd"
+[dumpfile_mtime] "Tue Oct 31 14:03:29 2023"
+[dumpfile_size] 98148139
+[savefile] "/media/iposthuman/Nihongo/Hardware/Retro-Amaranth/Learning/simulations/bl0x/17_memory_map/bench.gtkw"
+[timestart] 11900000000
+[size] 2580 913
+[pos] -13 -15
+*-32.000000 30410000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] bench.
+[treeopen] bench.top.
+[sst_width] 221
+[signals_width] 369
+[sst_expanded] 1
+[sst_vpaned_height] 253
+@22
+bench.top.slow_clk
+bench.top.cpu.pc[31:0]
+@28
+bench.top.cpu.fsm_state
+@22
+bench.top.cpu.instr[31:0]
+@28
+bench.top.cpu.mem_rstrb
+@22
+bench.top.cpu.Iimm[31:0]
+bench.top.cpu.rs1[31:0]
+bench.top.cpu.rs2[31:0]
+@28
+bench.top.cpu.isLUI
+bench.top.cpu.isLoad
+bench.top.cpu.isStore
+bench.top.cpu.store_wmask[3:0]
+@22
+bench.top.cpu.x2[31:0]
+@23
+bench.top.cpu.x3[31:0]
+@28
+bench.top.cpu.isALUimm
+[pattern_trace] 1
+[pattern_trace] 0
