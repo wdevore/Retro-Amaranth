@@ -12,26 +12,50 @@ from amaranth.hdl import \
     Cat, C
 
 from lib.clockworks import Clockworks
-from lib.uart_tx import UartTx
 
 from memory import Mem
-from cpu import CPU
+from lib.femtorv32_intermissum import CPU
 
 class SOC(Elaboratable):
 
     def __init__(self):
-
-        self.leds = Signal(5)
-        self.tx = Signal()
-
         # Signals in this list can easily be plotted as vcd traces
         self.ports = []
 
     def elaborate(self, platform: Platform) -> Module:
-        
         m = Module()
         
-        cw = Clockworks(slow=19, sim_slow=10)
+        # NOTE:
+        # Increasing the exponent value, for example, from 2^5 to 2^6
+        # increases the period but doesn't change the simulation step size.
+        # The step-size can't be changed, only the duration and period.
+        # If we specify 1000e-6 for the deadline, in the bench, that gives
+        # 1000 step duration.
+        # Example 1: 2^5 yields ~33 steps between clock edges or 18 clocks
+        #     over a duration of 1000 steps.
+        # Example 2: 2^6 yields ~65 steps between clock edges or 8 clocks
+        #     over a duration of 1000 steps.
+        # Example 3: 2^7 yields ~129 steps between clock edges or 4 clocks
+        #     over a duration of 1000 steps.
+        # Example 4: 2^8 yields ~257 steps between clock edges or 2 clocks
+        #     over a duration of 1000 steps.
+        # Example 5: 2^9 yields ~513 steps between clock edges or 1 clock
+        #     over a duration of 1000 steps.
+        # Example 6: 2^10 yields 0 clocks over a duration of 1000 steps.
+        #     However, if you increase the deadline (i.e. duration) to 2000e-6
+        #     you will now yield ~1025 steps between clock edges 
+        #     or 1 clock over a duration of 2000 steps.
+        #     Thus as you increase the deadline (aka simulation window),
+        #     you add more clock edges to the simulation.
+        # For a CPU simulation you will typically need several or more clocks
+        # to execute an instruction. Thus you need a duration long enough
+        # to execute all instructions.
+        # For example:
+        # A period of 2^5 and a duration of 100e-3 (ms) gives 1562 clocks, and
+        # the simulation take 100000 steps.
+        # For the Femto that means 1562/4 ~= 390 instructions. The simulation
+        # takes about 3 seconds to run on an 13th gen 16 thread intel.
+        cw = Clockworks(slow=19, sim_slow=5)
 
         if platform is not None:
             clk_frequency = int(platform.default_clk_constraint.frequency)
@@ -42,13 +66,10 @@ class SOC(Elaboratable):
         # Move the modules into the "slow" domain
         memory = DomainRenamer("slow")(Mem())
         cpu = DomainRenamer("slow")(CPU())
-        uart_tx = DomainRenamer("slow")(
-                UartTx(freq_hz=clk_frequency, baud_rate=1000000))
 
         m.submodules.cw = cw
         m.submodules.cpu = cpu
         m.submodules.memory = memory
-        m.submodules.uart_tx = uart_tx
 
         self.cpu = cpu
         self.memory = memory
@@ -81,33 +102,6 @@ class SOC(Elaboratable):
             ram_rdata.eq(memory.mem_rdata),
             cpu.mem_rdata.eq(Mux(isRAM, ram_rdata, io_rdata))
         ]
-
-        # LEDs
-        with m.If(isIO & mem_wstrb & mem_wordaddr[IO_LEDS_bit]):
-            m.d.sync += self.leds.eq(cpu.mem_wdata)
-
-        # UART
-        uart_valid = Signal()
-        uart_ready = Signal()
-
-        m.d.comb += [
-            uart_valid.eq(isIO & mem_wstrb & mem_wordaddr[IO_UART_DAT_bit])
-        ]
-
-        # Hook up UART
-        m.d.comb += [
-            uart_tx.valid.eq(uart_valid),
-            uart_tx.data.eq(cpu.mem_wdata[0:8]),
-            uart_ready.eq(uart_tx.ready),
-            self.tx.eq(uart_tx.tx)
-        ]
-
-        # Data from UART
-        m.d.comb += [
-            io_rdata.eq(Mux(mem_wordaddr[IO_UART_CNTL_bit],
-                Cat(C(0, 9), ~uart_ready, C(0, 22)), C(0, 32)))
-        ]
-
 
         # Export signals for simulation
         def export(signal, name):
