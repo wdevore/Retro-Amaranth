@@ -14,7 +14,7 @@ from amaranth.hdl import \
 from lib.clockworks import Clockworks
 
 from memory import Mem
-from lib.femtorv32_intermissum import CPU
+from lib.femtorv32 import Intermissum
 
 class SOC(Elaboratable):
 
@@ -29,8 +29,15 @@ class SOC(Elaboratable):
         # Increasing the exponent value, for example, from 2^5 to 2^6
         # increases the period but doesn't change the simulation step size.
         # The step-size can't be changed, only the duration and period.
-        # If we specify 1000e-6 for the deadline, in the bench, that gives
+        # If we specify 1000e-6 (1ms) for the deadline, in the bench, that gives
         # 1000 step duration.
+        # 
+        #                          duration
+        # |-----------------------------------------------------------------|
+        # \_________/``````````\_________/``````````\_________/``````````\__
+        #           |--------------------|
+        #               period = clock
+        # 
         # Example 1: 2^5 yields ~33 steps between clock edges or 18 clocks
         #     over a duration of 1000 steps.
         # Example 2: 2^6 yields ~65 steps between clock edges or 8 clocks
@@ -51,26 +58,27 @@ class SOC(Elaboratable):
         # to execute an instruction. Thus you need a duration long enough
         # to execute all instructions.
         # For example:
-        # A period of 2^5 and a duration of 100e-3 (ms) gives 1562 clocks, and
+        # A period of 2^5 and a duration of 100e-3 (100ms) gives 1562 clocks, and
         # the simulation take 100000 steps.
-        # For the Femto that means 1562/4 ~= 390 instructions. The simulation
-        # takes about 3 seconds to run on an 13th gen 16 thread intel.
+        # For the Femto that means 1562(clocks)/4(clocks per instruction) ~= 390
+        # instructions. The simulation takes about 3 seconds to run on a
+        # 13th gen 16 thread intel.
         cw = Clockworks(slow=19, sim_slow=5)
 
         if platform is not None:
             clk_frequency = int(platform.default_clk_constraint.frequency)
-            print("clock frequency = {}".format(clk_frequency))
         else:
             clk_frequency = 12000000
 
         # Move the modules into the "slow" domain
         memory = DomainRenamer("slow")(Mem())
-        cpu = DomainRenamer("slow")(CPU())
+        cpu = DomainRenamer("slow")(Intermissum())
 
         m.submodules.cw = cw
         m.submodules.cpu = cpu
         m.submodules.memory = memory
 
+        # Export to public
         self.cpu = cpu
         self.memory = memory
 
@@ -80,11 +88,6 @@ class SOC(Elaboratable):
         isRAM = Signal()
         mem_wstrb = Signal()
         io_rdata = Signal(32)
-
-        # Memory map bits (one-hot encoding)
-        IO_LEDS_bit = 0
-        IO_UART_DAT_bit = 1
-        IO_UART_CNTL_bit = 2
 
         m.d.comb += [
             mem_wordaddr.eq(cpu.mem_addr[2:32]),
@@ -117,6 +120,7 @@ class SOC(Elaboratable):
             export(ClockSignal("slow"), "slow_clk")
             # export(cpu.pc, "pc")
             # export(cpu.instr, "instr")
+            # export(cpu.funct3Is, "funct3Is")
             #export(isALUreg, "isALUreg")
             #export(isALUimm, "isALUimm")
             #export(isBranch, "isBranch")
