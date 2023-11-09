@@ -76,4 +76,4 @@ with sim.write_vcd('bench.vcd', 'bench.gtkw', traces=soc.ports):
     # Let's run for a quite long time
     # @NOTE: The Clk tick printed is delayed 1500ns from when Gtkwave shows
     # the signal edge.
-    sim.run_until(100e-3) # Deadline (aka duration) is given in seconds.
+    sim.run_until(10e-3) # Deadline (aka duration) is given in seconds.

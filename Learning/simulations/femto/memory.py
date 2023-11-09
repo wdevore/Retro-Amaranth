@@ -15,10 +15,10 @@ class Mem(Elaboratable):
 
         self.instructions = []
 
-        self.instructions.append(0x04030201)
-        self.instructions.append(0x08070605)
-        self.instructions.append(0x0c0b0a09)
-        self.instructions.append(0xff0f0e0d)
+        self.instructions.append(0x00500513)
+        self.instructions.append(0x00451613)
+        self.instructions.append(0x00265613)
+        self.instructions.append(0x00100073)
 
         # print("memory = {}".format(self.instructions))
 
