@@ -15,10 +15,32 @@ class Mem(Elaboratable):
 
         self.instructions = []
 
-        self.instructions.append(0x00500513)
-        self.instructions.append(0x00451613)
-        self.instructions.append(0x00265613)
+        self.instructions.append(0x00000297)
+        self.instructions.append(0x05028293)
+        self.instructions.append(0x02000313)
+        self.instructions.append(0x0042A503)
+        self.instructions.append(0x00A30023)
+        self.instructions.append(0x00A31023)
+        self.instructions.append(0x00A32023)
         self.instructions.append(0x00100073)
+        self.instructions.append(0x00000000)
+        self.instructions.append(0x00000000)
+        self.instructions.append(0x00000000)
+        self.instructions.append(0x00000000)
+        self.instructions.append(0x00000000)
+        self.instructions.append(0x00000000)
+        self.instructions.append(0x00000000)
+        self.instructions.append(0x00000000)
+        self.instructions.append(0x00000000)
+        self.instructions.append(0x00000000)
+        self.instructions.append(0x00000000)
+        self.instructions.append(0x00000000)
+        self.instructions.append(0xD3C2B1E0)
+        self.instructions.append(0xDEADBEAF)
+
+
+
+
 
         # print("memory = {}".format(self.instructions))
 
