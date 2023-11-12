@@ -1,21 +1,21 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Nov 10 04:16:38 2023
+[*] Sun Nov 12 00:33:35 2023
 [*]
 [dumpfile] "/media/iposthuman/Nihongo/Hardware/Retro-Amaranth/Learning/simulations/femto/bench.vcd"
-[dumpfile_mtime] "Fri Nov 10 04:10:37 2023"
-[dumpfile_size] 405386
+[dumpfile_mtime] "Sun Nov 12 00:28:43 2023"
+[dumpfile_size] 406845
 [savefile] "/media/iposthuman/Nihongo/Hardware/Retro-Amaranth/Learning/simulations/femto/custom.gtkw"
-[timestart] 1064900000
-[size] 2580 1374
-[pos] 157 561
-*-25.894375 1208100000 1119500000 1439500000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[timestart] 1933400000
+[size] 2580 1370
+[pos] 25 342
+*-25.894375 2335600000 2079500000 2399500000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] bench.
 [treeopen] bench.top.
 [sst_width] 221
 [signals_width] 369
 [sst_expanded] 1
-[sst_vpaned_height] 390
+[sst_vpaned_height] 386
 @22
 bench.top.slow_clk
 @28
@@ -23,49 +23,13 @@ bench.top.cpu.slow_rst
 bench.top.cpu.fsm_state
 @22
 bench.top.cpu.pc[31:0]
+[color] 3
 bench.top.cpu.instr[31:0]
-@c00028
-bench.top.cpu.instr[31:0]
-@28
-(0)bench.top.cpu.instr[31:0]
-(1)bench.top.cpu.instr[31:0]
-(2)bench.top.cpu.instr[31:0]
-(3)bench.top.cpu.instr[31:0]
-(4)bench.top.cpu.instr[31:0]
-(5)bench.top.cpu.instr[31:0]
-(6)bench.top.cpu.instr[31:0]
-(7)bench.top.cpu.instr[31:0]
-(8)bench.top.cpu.instr[31:0]
-(9)bench.top.cpu.instr[31:0]
-(10)bench.top.cpu.instr[31:0]
-(11)bench.top.cpu.instr[31:0]
-(12)bench.top.cpu.instr[31:0]
-(13)bench.top.cpu.instr[31:0]
-(14)bench.top.cpu.instr[31:0]
-(15)bench.top.cpu.instr[31:0]
-(16)bench.top.cpu.instr[31:0]
-(17)bench.top.cpu.instr[31:0]
-(18)bench.top.cpu.instr[31:0]
-(19)bench.top.cpu.instr[31:0]
-(20)bench.top.cpu.instr[31:0]
-(21)bench.top.cpu.instr[31:0]
-(22)bench.top.cpu.instr[31:0]
-(23)bench.top.cpu.instr[31:0]
-(24)bench.top.cpu.instr[31:0]
-(25)bench.top.cpu.instr[31:0]
-(26)bench.top.cpu.instr[31:0]
-(27)bench.top.cpu.instr[31:0]
-(28)bench.top.cpu.instr[31:0]
-(29)bench.top.cpu.instr[31:0]
-(30)bench.top.cpu.instr[31:0]
-(31)bench.top.cpu.instr[31:0]
-@1401200
--group_end
-@22
 bench.top.cpu.Iimm[31:0]
 bench.top.cpu.aluIn1[31:0]
 bench.top.cpu.aluIn2[31:0]
 bench.top.cpu.aluOut[31:0]
+bench.top.cpu.aluPlus[31:0]
 @c00022
 bench.top.cpu.loadStoreAddr[31:0]
 @28
@@ -108,6 +72,112 @@ bench.top.cpu.mem_rdata[31:0]
 @28
 bench.top.cpu.isByteAccess
 bench.top.cpu.isHalfwordAccess
+bench.top.cpu.isSystem
+bench.top.cpu.isStore
+bench.top.cpu.isLoad
+bench.top.cpu.isJAL
+bench.top.cpu.isJALR
+bench.top.cpu.loadSign
+[color] 1
+bench.top.cpu.writeBackEn
+@22
+bench.top.cpu.writeBackData[31:0]
+bench.top.cpu.rs1[31:0]
+bench.top.cpu.rs2[31:0]
+bench.top.cpu.loadByte[7:0]
+bench.top.cpu.loadHalfword[15:0]
+bench.top.cpu.loadData[31:0]
++{ra} bench.top.cpu.x1[31:0]
+bench.top.cpu.x7[31:0]
+[color] 2
+bench.top.cpu.x10[31:0]
+bench.top.cpu.x11[31:0]
+bench.top.memory.mem8[31:0]
+@200
+-SoC
+@28
+bench.top.isRAM
+bench.top.isIO
+bench.top.mem_rstrb
+bench.top.mem_wstrb
+@c00023
+bench.top.mem_wordaddr[29:0]
+@28
+(0)bench.top.mem_wordaddr[29:0]
+(1)bench.top.mem_wordaddr[29:0]
+(2)bench.top.mem_wordaddr[29:0]
+(3)bench.top.mem_wordaddr[29:0]
+(4)bench.top.mem_wordaddr[29:0]
+(5)bench.top.mem_wordaddr[29:0]
+(6)bench.top.mem_wordaddr[29:0]
+(7)bench.top.mem_wordaddr[29:0]
+(8)bench.top.mem_wordaddr[29:0]
+(9)bench.top.mem_wordaddr[29:0]
+(10)bench.top.mem_wordaddr[29:0]
+(11)bench.top.mem_wordaddr[29:0]
+(12)bench.top.mem_wordaddr[29:0]
+(13)bench.top.mem_wordaddr[29:0]
+(14)bench.top.mem_wordaddr[29:0]
+(15)bench.top.mem_wordaddr[29:0]
+(16)bench.top.mem_wordaddr[29:0]
+(17)bench.top.mem_wordaddr[29:0]
+(18)bench.top.mem_wordaddr[29:0]
+(19)bench.top.mem_wordaddr[29:0]
+(20)bench.top.mem_wordaddr[29:0]
+(21)bench.top.mem_wordaddr[29:0]
+(22)bench.top.mem_wordaddr[29:0]
+(23)bench.top.mem_wordaddr[29:0]
+(24)bench.top.mem_wordaddr[29:0]
+(25)bench.top.mem_wordaddr[29:0]
+(26)bench.top.mem_wordaddr[29:0]
+(27)bench.top.mem_wordaddr[29:0]
+(28)bench.top.mem_wordaddr[29:0]
+(29)bench.top.mem_wordaddr[29:0]
+@1401201
+-group_end
+@c00022
+bench.top.mem_addr[31:0]
+@28
+(0)bench.top.mem_addr[31:0]
+(1)bench.top.mem_addr[31:0]
+(2)bench.top.mem_addr[31:0]
+(3)bench.top.mem_addr[31:0]
+(4)bench.top.mem_addr[31:0]
+(5)bench.top.mem_addr[31:0]
+(6)bench.top.mem_addr[31:0]
+(7)bench.top.mem_addr[31:0]
+(8)bench.top.mem_addr[31:0]
+(9)bench.top.mem_addr[31:0]
+(10)bench.top.mem_addr[31:0]
+(11)bench.top.mem_addr[31:0]
+(12)bench.top.mem_addr[31:0]
+(13)bench.top.mem_addr[31:0]
+(14)bench.top.mem_addr[31:0]
+(15)bench.top.mem_addr[31:0]
+(16)bench.top.mem_addr[31:0]
+(17)bench.top.mem_addr[31:0]
+(18)bench.top.mem_addr[31:0]
+(19)bench.top.mem_addr[31:0]
+(20)bench.top.mem_addr[31:0]
+(21)bench.top.mem_addr[31:0]
+(22)bench.top.mem_addr[31:0]
+(23)bench.top.mem_addr[31:0]
+(24)bench.top.mem_addr[31:0]
+(25)bench.top.mem_addr[31:0]
+(26)bench.top.mem_addr[31:0]
+(27)bench.top.mem_addr[31:0]
+(28)bench.top.mem_addr[31:0]
+(29)bench.top.mem_addr[31:0]
+(30)bench.top.mem_addr[31:0]
+(31)bench.top.mem_addr[31:0]
+@1401200
+-group_end
+@22
+bench.top.mem_rdata[31:0]
+bench.top.ram_rdata[31:0]
+bench.top.mem_wdata[31:0]
+@28
+bench.top.mem_wmask[3:0]
 @c00028
 bench.top.cpu.store_wmask[3:0]
 @28
@@ -118,42 +188,7 @@ bench.top.cpu.store_wmask[3:0]
 @1401200
 -group_end
 @28
-bench.top.cpu.mem_wmask[3:0]
-bench.top.cpu.mem_rstrb
-bench.top.cpu.isSystem
-bench.top.cpu.isStore
-bench.top.cpu.isLoad
-bench.top.cpu.loadSign
-bench.top.cpu.writeBackEn
-@22
-bench.top.cpu.writeBackData[31:0]
-bench.top.cpu.rs1[31:0]
-bench.top.cpu.rs2[31:0]
-bench.top.cpu.x5[31:0]
-[color] 2
-bench.top.cpu.x10[31:0]
-bench.top.cpu.x11[31:0]
-bench.top.cpu.x12[31:0]
-bench.top.cpu.loadByte[7:0]
-bench.top.cpu.loadHalfword[15:0]
-bench.top.cpu.loadData[31:0]
-bench.top.memory.mem7[31:0]
-bench.top.memory.mem0[31:0]
-bench.top.memory.mem8[31:0]
-@23
-[color] 2
-bench.top.memory.mem9[31:0]
-@200
--SoC
-@28
-bench.top.isRAM
-bench.top.isIO
-@22
-bench.top.mem_addr[31:0]
-bench.top.mem_rdata[31:0]
-bench.top.ram_rdata[31:0]
-bench.top.mem_wdata[31:0]
-@28
-bench.top.mem_wmask[3:0]
+[color] 3
+bench.top.leds[2:0]
 [pattern_trace] 1
 [pattern_trace] 0

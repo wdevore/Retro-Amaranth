@@ -14,13 +14,14 @@ from amaranth.hdl import \
 from lib.clockworks import Clockworks
 
 from memory import Mem
-from lib.femtorv32 import Intermissum
+from lib.femtorv32 import Intermission
 
 class SOC(Elaboratable):
 
     def __init__(self):
         # Signals in this list can easily be plotted as vcd traces
         self.ports = []
+        self.leds = Signal(3)
 
     def elaborate(self, platform: Platform) -> Module:
         m = Module()
@@ -72,7 +73,7 @@ class SOC(Elaboratable):
 
         # Move the modules into the "slow" domain
         memory = DomainRenamer("slow")(Mem())
-        cpu = DomainRenamer("slow")(Intermissum())
+        cpu = DomainRenamer("slow")(Intermission())
 
         m.submodules.cw = cw
         m.submodules.cpu = cpu
@@ -82,16 +83,28 @@ class SOC(Elaboratable):
         self.cpu = cpu
         self.memory = memory
 
-        ram_rdata = Signal(32)
-        mem_wordaddr = Signal(30)
+        # IO is mapped to bit 22 of address
+        # LED "device" is bit 0 (one-hot encoding)
+        # 0000_0000_0010_0000_0000_0000_0000_0000 = 0x00200000 = LED selected
         isIO = Signal()
+        # Ram is everything NOT mapped to any upper bit.
         isRAM = Signal()
+
         mem_wstrb = Signal()
         io_rdata = Signal(32)
 
+        # Memory map bits (one-hot encoding)
+        # Because the IO devices are word aligned, bit0 is actually
+        # bit2 in full address.
+        IO_LEDS_bit = 0
+
+        ram_rdata = Signal(32)
+        mem_wordaddr = Signal(30)
+       
+
         m.d.comb += [
             mem_wordaddr.eq(cpu.mem_addr[2:32]),
-            isIO.eq(cpu.mem_addr[22]),
+            isIO.eq(cpu.mem_addr[21]),
             isRAM.eq(~isIO),
             mem_wstrb.eq(cpu.mem_wmask.any())
         ]
@@ -105,6 +118,10 @@ class SOC(Elaboratable):
             ram_rdata.eq(memory.mem_rdata),
             cpu.mem_rdata.eq(Mux(isRAM, ram_rdata, io_rdata))
         ]
+
+        # RGB LEDs
+        with m.If(isIO & mem_wstrb & mem_wordaddr[IO_LEDS_bit]):
+            m.d.sync += self.leds.eq(cpu.mem_wdata)
 
         # Export signals for simulation
         def export(signal, name):

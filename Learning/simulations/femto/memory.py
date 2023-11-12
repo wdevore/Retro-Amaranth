@@ -14,14 +14,14 @@ class Mem(Elaboratable):
         # append to Array.
 
         self.instructions = []
-
         self.instructions.append(0x00000297)
         self.instructions.append(0x05028293)
-        self.instructions.append(0x02000313)
-        self.instructions.append(0x0042A503)
-        self.instructions.append(0x00A30023)
-        self.instructions.append(0x00A31023)
+        self.instructions.append(0x02400313)
+        self.instructions.append(0x0002A503)
+        self.instructions.append(0x0042A383)
         self.instructions.append(0x00A32023)
+        self.instructions.append(0x00200593)
+        self.instructions.append(0x00B38223)
         self.instructions.append(0x00100073)
         self.instructions.append(0x00000000)
         self.instructions.append(0x00000000)
@@ -34,12 +34,8 @@ class Mem(Elaboratable):
         self.instructions.append(0x00000000)
         self.instructions.append(0x00000000)
         self.instructions.append(0x00000000)
-        self.instructions.append(0x00000000)
-        self.instructions.append(0xD3C2B1E0)
         self.instructions.append(0xDEADBEAF)
-
-
-
+        self.instructions.append(0x00200000)
 
 
         # print("memory = {}".format(self.instructions))
