@@ -96,11 +96,10 @@ class SOC(Elaboratable):
         # Memory map bits (one-hot encoding)
         # Because the IO devices are word aligned, bit0 is actually
         # bit2 in full address.
-        IO_LEDS_bit = 0
+        IO_LEDS_bit = 0     # To set bit use a value of 4
 
         ram_rdata = Signal(32)
         mem_wordaddr = Signal(30)
-       
 
         m.d.comb += [
             mem_wordaddr.eq(cpu.mem_addr[2:32]),
@@ -138,27 +137,6 @@ class SOC(Elaboratable):
             # export(cpu.pc, "pc")
             # export(cpu.instr, "instr")
             # export(cpu.funct3Is, "funct3Is")
-            #export(isALUreg, "isALUreg")
-            #export(isALUimm, "isALUimm")
-            #export(isBranch, "isBranch")
-            #export(isJAL, "isJAL")
-            #export(isJALR, "isJALR")
-            #export(isLoad, "isLoad")
-            #export(isStore, "isStore")
-            #export(isSystem, "isSystem")
-            #export(rdId, "rdId")
-            #export(rs1Id, "rs1Id")
-            #export(rs2Id, "rs2Id")
-            #export(Iimm, "Iimm")
-            #export(Bimm, "Bimm")
-            #export(Jimm, "Jimm")
-            #export(funct3, "funct3")
-            #export(rdId, "rdId")
-            #export(rs1, "rs1")
-            #export(rs2, "rs2")
-            #export(writeBackData, "writeBackData")
-            #export(writeBackEn, "writeBackEn")
-            #export(aluOut, "aluOut")
             #export((1 << cpu.fsm.state), "state")
 
         return m
