@@ -8,9 +8,9 @@
 _start:
     li a0, 1
     li a1, 2
-    add a2, a0, a1
-    sub a2, a1, a0
-    sub a2, a0, a1
+    add a2, a0, a1  # 1 + 2 = 3
+    sub a2, a1, a0  # 2 - 1 = 1
+    sub a2, a0, a1  # 1 - 2 = -1 = 0xFFFFFFFF
 
 Exit:
     ebreak

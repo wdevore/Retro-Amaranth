@@ -1,21 +1,21 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun Nov 12 00:33:35 2023
+[*] Wed Nov 15 02:49:04 2023
 [*]
 [dumpfile] "/media/iposthuman/Nihongo/Hardware/Retro-Amaranth/Learning/simulations/femto/bench.vcd"
-[dumpfile_mtime] "Sun Nov 12 00:28:43 2023"
-[dumpfile_size] 406845
+[dumpfile_mtime] "Wed Nov 15 02:48:16 2023"
+[dumpfile_size] 401178
 [savefile] "/media/iposthuman/Nihongo/Hardware/Retro-Amaranth/Learning/simulations/femto/custom.gtkw"
-[timestart] 1933400000
-[size] 2580 1370
+[timestart] 0
+[size] 2580 1412
 [pos] 25 342
-*-25.894375 2335600000 2079500000 2399500000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-26.894375 440900000 2079500000 2399500000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] bench.
 [treeopen] bench.top.
 [sst_width] 221
 [signals_width] 369
 [sst_expanded] 1
-[sst_vpaned_height] 386
+[sst_vpaned_height] 401
 @22
 bench.top.slow_clk
 @28
@@ -70,6 +70,7 @@ bench.top.cpu.loadStoreAddr[31:0]
 @22
 bench.top.cpu.mem_rdata[31:0]
 @28
+bench.top.cpu.funct3Is[7:0]
 bench.top.cpu.isByteAccess
 bench.top.cpu.isHalfwordAccess
 bench.top.cpu.isSystem
@@ -92,7 +93,8 @@ bench.top.cpu.x7[31:0]
 [color] 2
 bench.top.cpu.x10[31:0]
 bench.top.cpu.x11[31:0]
-bench.top.memory.mem8[31:0]
+@23
+bench.top.cpu.x12[31:0]
 @200
 -SoC
 @28
@@ -100,7 +102,7 @@ bench.top.isRAM
 bench.top.isIO
 bench.top.mem_rstrb
 bench.top.mem_wstrb
-@c00023
+@c00022
 bench.top.mem_wordaddr[29:0]
 @28
 (0)bench.top.mem_wordaddr[29:0]
@@ -133,7 +135,7 @@ bench.top.mem_wordaddr[29:0]
 (27)bench.top.mem_wordaddr[29:0]
 (28)bench.top.mem_wordaddr[29:0]
 (29)bench.top.mem_wordaddr[29:0]
-@1401201
+@1401200
 -group_end
 @c00022
 bench.top.mem_addr[31:0]

@@ -15,8 +15,8 @@ _start:
     # Store to ram first
     sw a0, 0(t1)
 
-    # Select to blue LED (rgb)
-    addi a1, x0, 2
+    # Select to green LED (rgb)
+    addi a1, x0, 1
     sb a1, 4(t2)        # Devices are one-hot word aligned.
                         # So LEDs are at bit2 = 4
 

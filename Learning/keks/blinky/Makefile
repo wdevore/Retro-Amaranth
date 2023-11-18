@@ -14,11 +14,9 @@ PATHS := ${ROOTPATH}amaranth-boards
 # Runs simulation
 build: ${BENCH}
 	@echo "##### Working..."
-	@PYTHONPATH=${PATHS} ${PYTHON} ${CODE} 1> output.txt
+	@PYTHONPATH=${PATHS} ${PYTHON} ${CODE} 1> ${BINPATH}/output.txt
 
-# I can't figure out the udev rules correctly for icesprog to work as user
-# @icesprog ${BINPATH}/top.bin
 upload:
 	@echo "##### Uploading..."
-	@cp ${BINPATH}/top.bin /media/iposthuman/iCELink
+	@ldprog -ks ${BINPATH}/top.bin
 	

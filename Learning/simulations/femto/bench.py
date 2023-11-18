@@ -28,12 +28,12 @@ def process():
             state = (yield cpu.fsm.state)
 
             if state == 2:
-                instr = (yield cpu.instr)
+                # instr = (yield cpu.instr)
                 print("-- NEW CYCLE -----------------------")
                 print("  F: state={}".format(state))
                 # print("  F: LEDS = {:05b}".format((yield soc.leds)))
                 # print("  F: pc={}".format((yield cpu.pc)))
-                print("  F: instr={:#032b}".format(instr))
+                # print("  F: instr={:#032b}".format(instr))
                 # if (yield cpu.isALUreg):
                 #     print("")
                 #     # print("     ALUreg rd={} rs1={} rs2={} funct3={}".format(
