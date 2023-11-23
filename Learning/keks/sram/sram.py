@@ -62,8 +62,8 @@ class Top(Elaboratable):
                         sram_0.cs.o.eq(1), # DeSelect chip
                         sram_0.we.o.eq(1), # Disable write
                         sram_0.oe.o.eq(1), # Disable output
-                        sram_0.dm.o[0].eq(1), # Disable lower byte
-                        sram_0.dm.o[1].eq(1), # Disable upper byte
+                        # Disable write mask
+                        sram_0.dm.o.eq(0b00),
                         # Stop driving the bus (i.e. careen off the cliff ;-)
                         sram_0.d.oe.eq(1),
                     ]
