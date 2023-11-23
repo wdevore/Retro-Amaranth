@@ -118,8 +118,7 @@ class Top(Elaboratable):
                         # Setup address
                         sram_0.a.o.eq(0x00000),
                         # Enable lower/upper byte mask
-                        sram_0.dm.o[0].eq(0),
-                        sram_0.dm.o[1].eq(0),
+                        sram_0.dm.o.eq(0b11),
                     ]
                     m.next = "READ_A2"
                 with m.State("READ_A2"):
@@ -139,7 +138,7 @@ class Top(Elaboratable):
                         # Disable lower/upper byte mask
                         # sram_0.dm.o[0].eq(1),
                         # sram_0.dm.o[1].eq(1),
-                        sram_0.dm.o.eq(0b11),
+                        sram_0.dm.o.eq(0b00),
                         # Data valid read
                         halfWord.eq(sram_0.d.i[0:16]),
                     ]
