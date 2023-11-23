@@ -115,11 +115,10 @@ class Intermission(Elaboratable):
         isLoadStore  = Signal()
 
         # The ALU function, decoded in 1-hot form (doing so reduces LUT count)
-        # NOTE: For some reason this actually causes an increase is cells!
-        # funct3Is = Signal(8)
+        funct3Is = Signal(8)
 
         m.d.comb += [
-            # funct3Is.eq(0b00000001 << funct3),
+            funct3Is.eq(0b00000001 << funct3),
             isALUreg.eq(instr[0:7] == R_ALU_Opcode.value),
             isALUimm.eq(instr[0:7] == I_ALU_Opcode.value),
             isBranch.eq(instr[0:7] == B_BRA_Opcode.value),
@@ -247,36 +246,58 @@ class Intermission(Elaboratable):
         #               Mux(funct3Is[6], aluIn1 | aluIn2, aluIn1 & aluIn2))))))))
         # ]
 
-        with m.Switch(funct3) as alu:
-            with m.Case(0b000):
+        # NOTE See Amaranth's pmux example that show what appears to be
+        #      a one-hot example using "--1" and a switch statement.
+        with m.Switch(funct3Is) as alu:
+            with m.Case("-------1"):
                 m.d.comb += aluOut.eq(Mux(funct7[5] & instr[5], (aluIn1 - aluIn2), aluPlus))
-            with m.Case(0b001):
+            with m.Case("------1-"):
                 m.d.comb += aluOut.eq(aluIn1 << shamt)
-            with m.Case(0b010): # Signed (a < b)
+            with m.Case("-----1--"):  # Signed (a < b)
                 m.d.comb += aluOut.eq(Cat(LT, Repl(0, 31)))
-            with m.Case(0b011): # Unsigned (a < b)
+            with m.Case("----1---"):  # Unsigned (a < b)
                 m.d.comb += aluOut.eq(Cat(LTU, Repl(0, 31)))
-            with m.Case(0b100):
+            with m.Case("---1----"):
                 m.d.comb += aluOut.eq(aluIn1 ^ aluIn2)
-            with m.Case(0b101):
+            with m.Case("--1-----"):
                 m.d.comb += aluOut.eq(Mux(funct7[5],
                     (aluIn1.as_signed() >> shamt),     # arithmetic right shift
                     (aluIn1.as_unsigned() >> shamt)))  # logical right shift
-            with m.Case(0b110):
+            with m.Case("-1------"):
                 m.d.comb += aluOut.eq(aluIn1 | aluIn2)
-            with m.Case(0b111):
+            with m.Case("1-------"):
                 m.d.comb += aluOut.eq(aluIn1 & aluIn2)
 
+        # with m.Switch(funct3) as alu:
+        #     with m.Case(0b000):
+        #         m.d.comb += aluOut.eq(Mux(funct7[5] & instr[5], (aluIn1 - aluIn2), aluPlus))
+        #     with m.Case(0b001):
+        #         m.d.comb += aluOut.eq(aluIn1 << shamt)
+        #     with m.Case(0b010): # Signed (a < b)
+        #         m.d.comb += aluOut.eq(Cat(LT, Repl(0, 31)))
+        #     with m.Case(0b011): # Unsigned (a < b)
+        #         m.d.comb += aluOut.eq(Cat(LTU, Repl(0, 31)))
+        #     with m.Case(0b100):
+        #         m.d.comb += aluOut.eq(aluIn1 ^ aluIn2)
+        #     with m.Case(0b101):
+        #         m.d.comb += aluOut.eq(Mux(funct7[5],
+        #             (aluIn1.as_signed() >> shamt),     # arithmetic right shift
+        #             (aluIn1.as_unsigned() >> shamt)))  # logical right shift
+        #     with m.Case(0b110):
+        #         m.d.comb += aluOut.eq(aluIn1 | aluIn2)
+        #     with m.Case(0b111):
+        #         m.d.comb += aluOut.eq(aluIn1 & aluIn2)
+
         # Femto calls this "predicate" for conditional branches
-        # m.d.comb += [
-        #     takeBranch.eq(Mux(funct3Is[0], EQ,      # BEQ
-        #                   Mux(funct3Is[1], ~EQ,     # BNE
-        #                   Mux(funct3Is[4], LT,      # BLT
-        #                   Mux(funct3Is[5], ~LT,     # BGE
-        #                   Mux(funct3Is[6], LTU,     # BLTU
-        #                   Mux(funct3Is[7], ~LTU,    # BGEU
-        #                   0)))))))
-        # ]
+        m.d.comb += [
+            takeBranch.eq(Mux(funct3Is[0], EQ,      # BEQ
+                          Mux(funct3Is[1], ~EQ,     # BNE
+                          Mux(funct3Is[4], LT,      # BLT
+                          Mux(funct3Is[5], ~LT,     # BGE
+                          Mux(funct3Is[6], LTU,     # BLTU
+                          Mux(funct3Is[7], ~LTU,    # BGEU
+                          0)))))))
+        ]
 
         with m.Switch(funct3) as alu_branch:
             with m.Case(0b000):

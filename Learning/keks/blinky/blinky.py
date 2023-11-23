@@ -27,16 +27,17 @@ class Top(Elaboratable):
         if platform is not None:
             # NOTE PinsN is used instead of Pins because the LED strip
             # is negative logic and I wanted positive logic (i.e. 1 = on)
+            
             # Individual Pins
             # platform.add_resources([
-            #     Resource("pmod_b", 0, PinsN("1", dir="o", conn=("pmod", 1)), Attrs(IO_STANDARD="LVCMOS33")),
-            #     Resource("pmod_b", 1, PinsN("2", dir="o", conn=("pmod", 1)), Attrs(IO_STANDARD="LVCMOS33")),
-            #     Resource("pmod_b", 2, PinsN("3", dir="o", conn=("pmod", 1)), Attrs(IO_STANDARD="LVCMOS33")),
-            #     Resource("pmod_b", 3, PinsN("4", dir="o", conn=("pmod", 1)), Attrs(IO_STANDARD="LVCMOS33")),
-            #     Resource("pmod_b", 4, PinsN("5", dir="o", conn=("pmod", 1)), Attrs(IO_STANDARD="LVCMOS33")),
-            #     Resource("pmod_b", 5, PinsN("6", dir="o", conn=("pmod", 1)), Attrs(IO_STANDARD="LVCMOS33")),
-            #     Resource("pmod_b", 6, PinsN("7", dir="o", conn=("pmod", 1)), Attrs(IO_STANDARD="LVCMOS33")),
-            #     Resource("pmod_b", 7, PinsN("8", dir="o", conn=("pmod", 1)), Attrs(IO_STANDARD="LVCMOS33")),
+            #     Resource("pmod_b", 0, PinsN("1", dir="o", conn=("pmod", 1))),
+            #     Resource("pmod_b", 1, PinsN("2", dir="o", conn=("pmod", 1))),
+            #     Resource("pmod_b", 2, PinsN("3", dir="o", conn=("pmod", 1))),
+            #     Resource("pmod_b", 3, PinsN("4", dir="o", conn=("pmod", 1))),
+            #     Resource("pmod_b", 4, PinsN("5", dir="o", conn=("pmod", 1))),
+            #     Resource("pmod_b", 5, PinsN("6", dir="o", conn=("pmod", 1))),
+            #     Resource("pmod_b", 6, PinsN("7", dir="o", conn=("pmod", 1))),
+            #     Resource("pmod_b", 7, PinsN("8", dir="o", conn=("pmod", 1))),
             # ])
 
             # or Grouped Pins. This is good for strips or arrays of LEDs
