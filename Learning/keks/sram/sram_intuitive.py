@@ -5,7 +5,6 @@ from amaranth_boards.machdyne_keks import KeksPlatform
 from amaranth.hdl import \
     Elaboratable, \
     Module, \
-    Array, \
     Signal, \
     Cat, \
     Repl
@@ -22,18 +21,10 @@ class Top(Elaboratable):
         m = Module()
 
         count = Signal(32, reset = 0)
-        halfWord = Signal(16)
+        readBuf = Signal(16)
         stateBuf = Signal(8, reset=0b11111111)
 
-        # This increments when count[27] is set
-        memAddr = Signal(5, reset = 0)
-
-        m.d.sync += count.eq(count + 1)
-
-        data = [0x1122, 0xdead, 0xbeaf, 0x0101, 0x1010, 0x0a0a, 0xa0a0]
-        
-        mem = Array([Signal(16, reset=x, name="mem{}".format(i))
-                    for i,x in enumerate(data)])
+        m.d.sync += count.eq( count + 1 )
 
         if platform is not None:
             platform.add_resources([
@@ -47,13 +38,13 @@ class Top(Elaboratable):
 
             m.d.comb += [
                 wht_led.o.eq(count[ 23 ]),
-                # pmod_a.o.eq(stateBuf),
+                pmod_a.o.eq(stateBuf),
             ]
         
             sram_0 = platform.request('sram', 0)
 
             # Setup address. 18bits = 0b00_0000_0000_0000_0000
-            # 0x00000 -> 0x3FFFF
+            # 0x00000
 
             with m.FSM(reset="INIT") as fsm:
                 self.fsm = fsm
@@ -64,54 +55,58 @@ class Top(Elaboratable):
                         sram_0.oe.o.eq(1), # Disable output
                         sram_0.dm.o[0].eq(1), # Disable lower byte
                         sram_0.dm.o[1].eq(1), # Disable upper byte
-                        # Stop driving the bus (i.e. careen off the cliff ;-)
-                        sram_0.d.oe.eq(1),
+                        stateBuf.eq(0b00000001),
                     ]
-                    m.next = "WRITE"
+                    m.next = "WRITE_A1"
 
                 # ------------------------------------------------
                 # Write cycle (CS controlled)
                 # ------------------------------------------------
-                with m.State("WRITE"):
+                with m.State("WRITE_A1"):
                     m.d.sync += [
                         # Setup address and data
-                        sram_0.a.o.eq(memAddr),
-                        sram_0.d.o.eq(mem[memAddr]),
+                        sram_0.a.o.eq(0x00000),
+                        sram_0.d.o.eq(0xdead),
                     ]
-                    m.next = "WRITE_BEGIN"
-                with m.State("WRITE_BEGIN"):
+                    m.next = "WRITE_A2"
+                with m.State("WRITE_A2"):
                     m.d.sync += [
                         # Enable CS
                         sram_0.cs.o.eq(0),
-                        # Enable lower and upper byte write mask
-                        sram_0.dm.o.eq(0b11),
+                        # Enable lower/upper byte mask
+                        sram_0.dm.o[0].eq(0),
+                        sram_0.dm.o[1].eq(0),
                         # Start driving the bus
                         sram_0.d.oe.eq(1)
                     ]
-                    m.next = "WRITE_WE"
-                with m.State("WRITE_WE"):
+                    m.next = "WRITE_A2a"
+                with m.State("WRITE_A2a"):
                     m.d.sync += [
                         # Enable write
                         sram_0.we.o.eq(0),
                     ]
-                    m.next = "WRITE_END"
-                with m.State("WRITE_END"):
+                    m.next = "WRITE_A3"
+                with m.State("WRITE_A3"):
+                    # Delay
+                    m.next = "WRITE_A4"
+                with m.State("WRITE_A4"):
                     m.d.sync += [
                         # Stop driving the bus
                         sram_0.d.oe.eq(1),
                         # Disable CS (Data latched on rising edge)
                         sram_0.cs.o.eq(1),
-                        # Disable lower and upper byte write mask
-                        sram_0.dm.o.eq(0b00),
+                        # Disable lower/upper byte mask
+                        sram_0.dm.o[0].eq(1),
+                        sram_0.dm.o[1].eq(1),
                         # Disable write
                         sram_0.we.o.eq(1),
                     ]
-                    m.next = "READ"
+                    m.next = "READ_A1"
 
                 # ------------------------------------------------
                 # Read cycle (OE controlled)
                 # ------------------------------------------------
-                with m.State("READ"):
+                with m.State("READ_A1"):
                     m.d.sync += [
                         # Enable CS
                         sram_0.cs.o.eq(0),
@@ -141,7 +136,7 @@ class Top(Elaboratable):
                         # sram_0.dm.o[1].eq(1),
                         sram_0.dm.o.eq(0b11),
                         # Data valid read
-                        halfWord.eq(sram_0.d.i[0:16]),
+                        readBuf.eq(sram_0.d.i[0:16]),
                     ]
                     m.next = "READ_A4"
                 with m.State("READ_A4"):
@@ -154,8 +149,7 @@ class Top(Elaboratable):
                     m.d.sync += [
                         stateBuf.eq(0b10000001),
                         # Write buf to LEDs
-                        pmod_a.o.eq(halfWord[8:17]),
-                        pmod_b.o.eq(halfWord[0:8]),
+                        pmod_b.o.eq(readBuf[0:8]),
                     ]
                     m.next = "READ_A5"
 
