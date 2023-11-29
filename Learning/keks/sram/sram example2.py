@@ -22,11 +22,10 @@ class Top(Elaboratable):
         # We need a top level module
         m = Module()
 
-        ASSERT_SIGNAL = Const(1, 1)
-        DEASSERT_SIGNAL = Const(0, 1)
+        SIG_ASSERT = Const(1, 1)
+        SIG_DEASSERT = Const(0, 1)
 
-        # The bits are reversed because the Rresource reverses them:
-        # dm="LB# UB#"
+        #             dm="LB# UB#"
         ZERO_BYTES = Const(0b00, 2)
         #                    LU
         UPPER_BYTE = Const(0b01, 2)
@@ -58,7 +57,7 @@ class Top(Elaboratable):
             pmod_b = platform.request('pmod_b', 1)
 
             m.d.comb += [
-                wht_led.o.eq(count[ 23 ]),
+                wht_led.o.eq(count[23]),
                 # pmod_a.o.eq(stateBuf),
             ]
         
@@ -71,13 +70,13 @@ class Top(Elaboratable):
                 self.fsm = fsm
                 with m.State("INIT"):
                     m.d.sync += [
-                        sram_0.cs.o.eq(DEASSERT_SIGNAL),
-                        sram_0.we.o.eq(DEASSERT_SIGNAL),
-                        sram_0.oe.o.eq(DEASSERT_SIGNAL),
+                        sram_0.cs.o.eq(SIG_DEASSERT),
+                        sram_0.we.o.eq(SIG_DEASSERT),
+                        sram_0.oe.o.eq(SIG_DEASSERT),
                         # Mask out both bytes
                         sram_0.dm.o.eq(ZERO_BYTES),
                         # Stop driving the bus (i.e. careen off the cliff ;-)
-                        sram_0.d.oe.eq(DEASSERT_SIGNAL),
+                        sram_0.d.oe.eq(SIG_DEASSERT),
                     ]
                     m.next = "WRITE"
 
@@ -94,29 +93,29 @@ class Top(Elaboratable):
                 with m.State("WRITE_BEGIN"):
                     m.d.sync += [
                         # Enable CS
-                        sram_0.cs.o.eq(ASSERT_SIGNAL),
+                        sram_0.cs.o.eq(SIG_ASSERT),
                         # Set byte write mask
                         sram_0.dm.o.eq(LOWER_BYTE),
                         # Start driving the bus
-                        sram_0.d.oe.eq(ASSERT_SIGNAL)
+                        sram_0.d.oe.eq(SIG_ASSERT)
                     ]
                     m.next = "WRITE_WE"
                 with m.State("WRITE_WE"):
                     m.d.sync += [
                         # Enable write
-                        sram_0.we.o.eq(ASSERT_SIGNAL),
+                        sram_0.we.o.eq(SIG_ASSERT),
                     ]
                     m.next = "WRITE_END"
                 with m.State("WRITE_END"):
                     m.d.sync += [
                         # Stop driving the bus
-                        sram_0.d.oe.eq(DEASSERT_SIGNAL),
+                        sram_0.d.oe.eq(SIG_DEASSERT),
                         # Disable CS (Data latched on rising edge)
-                        sram_0.cs.o.eq(DEASSERT_SIGNAL),
+                        sram_0.cs.o.eq(SIG_DEASSERT),
                         # Disable lower and upper byte write mask
                         sram_0.dm.o.eq(ZERO_BYTES),
                         # Disable write
-                        sram_0.we.o.eq(DEASSERT_SIGNAL),
+                        sram_0.we.o.eq(SIG_DEASSERT),
                     ]
                     m.next = "READ"
 
@@ -126,7 +125,7 @@ class Top(Elaboratable):
                 with m.State("READ"):
                     m.d.sync += [
                         # Enable CS
-                        sram_0.cs.o.eq(ASSERT_SIGNAL),
+                        sram_0.cs.o.eq(SIG_ASSERT),
                         # Setup address
                         sram_0.a.o.eq(0x00000),
                         # Set read byte mask
@@ -136,7 +135,7 @@ class Top(Elaboratable):
                 with m.State("READ_A2"):
                     m.d.sync += [
                         # Lower OE to start read cycle
-                        sram_0.oe.o.eq(ASSERT_SIGNAL),
+                        sram_0.oe.o.eq(SIG_ASSERT),
                     ]
                     m.next = "READ_A3a"
                 with m.State("READ_A3a"):
@@ -146,7 +145,7 @@ class Top(Elaboratable):
                 with m.State("READ_A3"):
                     m.d.sync += [
                         # Disable CS
-                        sram_0.cs.o.eq(DEASSERT_SIGNAL),
+                        sram_0.cs.o.eq(SIG_DEASSERT),
                         # Disable lower/upper byte mask
                         sram_0.dm.o.eq(ZERO_BYTES),
                         # Data valid read
@@ -156,7 +155,7 @@ class Top(Elaboratable):
                 with m.State("READ_A4"):
                     m.d.sync += [
                         # Raise OE to complete read cycle
-                        sram_0.oe.o.eq(DEASSERT_SIGNAL),
+                        sram_0.oe.o.eq(SIG_DEASSERT),
                     ]
                     m.next = "READ_A5"
                 with m.State("READ_A5"):

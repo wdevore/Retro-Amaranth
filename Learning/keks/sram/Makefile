@@ -1,4 +1,4 @@
-CODENAME = sram
+CODENAME = sram_write_ub_lb
 CODE = ${CODENAME}.py
 
 PYTHON = python
@@ -13,7 +13,7 @@ PATHS := ${ROOTPATH}amaranth-boards
 
 # Runs simulation
 build: ${BENCH}
-	@echo "##### Working..."
+	@echo "##### Working on '${CODENAME}' ..."
 	@PYTHONPATH=${PATHS} ${PYTHON} ${CODE} 1> ${BINPATH}/output.txt
 
 upload:
