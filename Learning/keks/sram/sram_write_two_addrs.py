@@ -17,9 +17,10 @@ from amaranth.build import \
     Attrs
 
 # In this test we:
-# 1) write a lower byte and read
-# 2) write an upper byte
-# 3) read upper/lower and it should equal #1 and #2 combined
+# 1) write to address 0 the value 0x1234
+# 2) write to address 1 the value 0xbeaf
+# 3) read address 0
+# 4) read address 1
 
 class Top(Elaboratable):
 
@@ -32,17 +33,11 @@ class Top(Elaboratable):
 
         count = Signal(32, reset = 0)
         halfWord = Signal(16)
-        stateBuf = Signal(8, reset=0b11111111)
-
-        sram_0_we = Signal()
-        sram_0_oe = Signal()
-        
-        sram_wr = Signal()
 
         # mem_wstrb = 0b0001    # sram 0 LB selected
         # mem_wstrb = 0b0011    # sram 0 LB and UB selected
         # etc.
-        mem_wstrb = Signal(4, reset=0b0000)   # Active high signals
+        # mem_wstrb = Signal(4, reset=0b0000)   # Active high signals
 
         # This increments when count[27] is set
         memAddr = Signal(5, reset = 0)
@@ -50,8 +45,7 @@ class Top(Elaboratable):
         # Address = 18bits = 0b00_0000_0000_0000_0000
         #           0x00000 -> 0x3FFFF
 
-        data = [0x5678, 0xdead, 0xbeaf, 0x0101, 0x1010, 0x0a0a, 0xa0a0]
-        # wr_data = Signal(16)
+        data = [0x9a5b, 0x1234, 0x4321, 0xbeaf, 0xdead, 0x0101, 0x1010, 0x0a0a, 0xa0a0]
 
         mem = Array([Signal(16, reset=x, name="mem{}".format(i))
                     for i,x in enumerate(data)])
@@ -85,8 +79,8 @@ class Top(Elaboratable):
                     m.next = "WRITE"
 
                 # ------------------------------------------------
-                # Write cycle (WE controlled)
-                # Writes 0x78
+                # Write cycle #3 (WE controlled)
+                # Writes 0x1234
                 # ------------------------------------------------
                 with m.State("WRITE"):
                     m.d.sync += [
@@ -94,12 +88,7 @@ class Top(Elaboratable):
                         sram_0.a.o.eq(memAddr),
                         sram_0.d.o.eq(mem[memAddr]),
 
-                        # Setup data mask
-                        # 10 = Vert(pmod A) = UB 
-                        # 01 = (pmod B) = LB = 78
-                        sram_0.dm.o.eq(0b01),
-                        
-                        sram_0.oe.o.eq(SIG_DEASSERT),
+                        sram_0.oe.o.eq(SIG_ASSERT),
 
                         # Enable driving the bus
                         sram_0.d.oe.eq(SIG_ASSERT),
@@ -107,10 +96,48 @@ class Top(Elaboratable):
                     m.next = "WRITE_S1"
                 with m.State("WRITE_S1"):
                     m.d.sync += [
+                        sram_0.dm.o.eq(0b11),   # Both
+
                         sram_0.we.o.eq(SIG_ASSERT),
                     ]
+                    m.next = "WRITE_S2a"
+                with m.State("WRITE_S2a"):
                     m.next = "WRITE_END"
                 with m.State("WRITE_END"):
+                    m.d.sync += [
+                        sram_0.we.o.eq(SIG_DEASSERT),
+                        sram_0.oe.o.eq(SIG_DEASSERT),
+                        # Stop driving the bus
+                        sram_0.d.oe.eq(SIG_DEASSERT),
+                    ]
+                    m.next = "WRITE_2"
+
+                # ------------------------------------------------
+                # Write cycle #3 (WE controlled)
+                # Writes 0x9a5b
+                # ------------------------------------------------
+                with m.State("WRITE_2"):
+                    m.d.sync += [
+                        # Write to addr:1 using data from BRAM addr:1
+                        sram_0.a.o.eq(memAddr+1),
+                        sram_0.d.o.eq(mem[memAddr+1]),
+
+                        sram_0.oe.o.eq(SIG_ASSERT),
+
+                        # Enable driving the bus
+                        sram_0.d.oe.eq(SIG_ASSERT),
+                    ]
+                    m.next = "WRITE_2_S1"
+                with m.State("WRITE_2_S1"):
+                    m.d.sync += [
+                        sram_0.dm.o.eq(0b11),   # Both
+                        
+                        sram_0.we.o.eq(SIG_ASSERT),
+                    ]
+                    m.next = "WRITE_2_S2a"
+                with m.State("WRITE_2_S2a"):
+                    m.next = "WRITE_2_END"
+                with m.State("WRITE_2_END"):
                     m.d.sync += [
                         sram_0.we.o.eq(SIG_DEASSERT),
                         sram_0.oe.o.eq(SIG_DEASSERT),
@@ -121,14 +148,10 @@ class Top(Elaboratable):
 
                 # ------------------------------------------------
                 # Read cycle (OE controlled)
+                # Read address 0 = 0x1234
                 # ------------------------------------------------
                 with m.State("READ"):
                     m.d.sync += [
-                        # If either are 0 then Read latches both bytes
-                        # which doesn't seem correct according to the
-                        # specs. The specs timinig diagram indicates
-                        # that is correct, but the truth table indicates
-                        # it is not.
                         sram_0.dm.o.eq(0b11),
 
                         # Setup address
@@ -136,6 +159,8 @@ class Top(Elaboratable):
                         
                         sram_0.oe.o.eq(SIG_ASSERT),
                     ]
+                    m.next = "READ_S2a"
+                with m.State("READ_S2a"):
                     m.next = "READ_S2"
                 with m.State("READ_S2"):
                     m.d.sync += [
@@ -145,84 +170,51 @@ class Top(Elaboratable):
                     m.next = "READ_S3"
                 with m.State("READ_S3"):
                     m.d.sync += [
-                        sram_0.dm.o.eq(0b00),
+                        sram_0.dm.o.eq(0b11),
 
                         sram_0.oe.o.eq(SIG_DEASSERT),
                         # Write buf to LEDs
-                        pmod_a.o.eq(halfWord[8:17]), # Vertical pmod
+                        pmod_a.o.eq(halfWord[8:16]), # Vertical pmod
                         pmod_b.o.eq(halfWord[0:8]),
                     ]
                     m.next = "WAIT_1"
                 with m.State("WAIT_1"):
                     with m.If(count[29]):  # ~4 seconds
-                        memAddr.eq(memAddr + 1)
-                        m.next = "WRITE_UPPER"
+                        m.next = "READ_2"
                     with m.Else():
                         m.next = "WAIT_1"
 
                 # ------------------------------------------------
-                # Writes 0xad from second halfword
-                # ------------------------------------------------
-                with m.State("WRITE_UPPER"):
-                    m.d.sync += [
-                        # Write to addr:0 using data from BRAM addr:1
-                        sram_0.a.o.eq(memAddr),
-                        sram_0.d.o.eq(mem[memAddr+1]),
-
-                        # Setup data mask
-                        # 10 = Vert(pmod A) = UB  0xde
-                        # 01 = (pmod B) = LB
-                        sram_0.dm.o.eq(0b10),
-                        
-                        sram_0.oe.o.eq(SIG_DEASSERT),
-
-                        # Enable driving the bus
-                        sram_0.d.oe.eq(SIG_ASSERT),
-                    ]
-                    m.next = "WRITE_UPPER_S1"
-                with m.State("WRITE_UPPER_S1"):
-                    m.d.sync += [
-                        sram_0.we.o.eq(SIG_ASSERT),
-                    ]
-                    m.next = "WRITE_UPPER_END"
-                with m.State("WRITE_UPPER_END"):
-                    m.d.sync += [
-                        sram_0.we.o.eq(SIG_DEASSERT),
-                        sram_0.oe.o.eq(SIG_DEASSERT),
-                        # Stop driving the bus
-                        sram_0.d.oe.eq(SIG_DEASSERT),
-                    ]
-                    m.next = "READ_BOTH"
-
-                # ------------------------------------------------
                 # Read cycle (OE controlled)
-                # Should read 0xde78
+                # Should read 0xbeaf = 1011_1110_1010_1111
                 # NOTE You need to have two 8bit pmod LED plugged into
                 # pmod A and B.
                 # ------------------------------------------------
-                with m.State("READ_BOTH"):
+                with m.State("READ_2"):
                     m.d.sync += [
                         sram_0.dm.o.eq(0b11),
 
                         # Setup address
-                        sram_0.a.o.eq(memAddr),
+                        sram_0.a.o.eq(memAddr+1),
                         
                         sram_0.oe.o.eq(SIG_ASSERT),
                     ]
-                    m.next = "READ_BOTH_S2"
-                with m.State("READ_BOTH_S2"):
+                    m.next = "READ_2_S2a"
+                with m.State("READ_2_S2a"):
+                    m.next = "READ_2_S2"
+                with m.State("READ_2_S2"):
                     m.d.sync += [
                         # Data valid read
                         halfWord.eq(sram_0.d.i[0:16]),
                     ]
-                    m.next = "READ_BOTH_S3"
-                with m.State("READ_BOTH_S3"):
+                    m.next = "READ_2_S3"
+                with m.State("READ_2_S3"):
                     m.d.sync += [
-                        sram_0.dm.o.eq(0b00),
+                        sram_0.dm.o.eq(0b11),
 
                         sram_0.oe.o.eq(SIG_DEASSERT),
                         # Write buf to LEDs
-                        pmod_a.o.eq(halfWord[8:17]), # Vertical pmod
+                        pmod_a.o.eq(halfWord[8:16]), # Vertical pmod
                         pmod_b.o.eq(halfWord[0:8]),
                     ]
                     m.next = "HOLD"

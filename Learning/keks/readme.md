@@ -19,3 +19,8 @@ https://github.com/machdyne/zucker/blob/main/rtl/sysctl_pico.v#L1595
 # sram_basic_working.py
 This is lower level and most simply write/read sequence. It doesn't use combinatorial circuit, just sequencial.
 
+# sram_write_two_addrs.py
+This writes to address 0 and 1, then reads them back. It doesn't use combinatorial circuit, just sequencial. WE wasn't being held long enough which was causing succesive write errors.
+
+# sram_write_combinatorial.py (NOT WORKING)
+This attempts to use the verilog example approach. It doesn't work at the moment.

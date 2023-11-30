@@ -1,4 +1,4 @@
-CODENAME = sram_write_ub_lb
+CODENAME = sram_write_two_addrs
 CODE = ${CODENAME}.py
 
 PYTHON = python

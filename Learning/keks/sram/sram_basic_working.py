@@ -25,11 +25,6 @@ class Top(Elaboratable):
         SIG_ASSERT = Const(1, 1)
         SIG_DEASSERT = Const(0, 1)
 
-        ZERO_BYTES = Const(0b00, 2)
-        UPPER_BYTE = Const(0b01, 2)
-        LOWER_BYTE = Const(0b10, 2)
-        BOTH_BYTES = Const(0b11, 2)
-
         count = Signal(32, reset = 0)
         halfWord = Signal(16)
         stateBuf = Signal(8, reset=0b11111111)
