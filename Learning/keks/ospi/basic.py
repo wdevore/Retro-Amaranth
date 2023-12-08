@@ -57,7 +57,6 @@ class Top(Elaboratable):
         # RAM_BANK = 1
 
         if platform is not None:
-            # This pin arrangement is for the iCESugar LED pmods.
             platform.add_resources([
                 Resource("pmod_a", 0, PinsN("1 2 3 4 7 8 9 10", dir="o", conn=("pmod", 0))),
                 Resource("pmod_b", 1, PinsN("1 2 3 4 7 8 9 10", dir="o", conn=("pmod", 1))),
@@ -107,8 +106,8 @@ class Top(Elaboratable):
 
                         sram.we.o.eq(SIG_ASSERT),
                     ]
-                    m.next = "WRITE_HOLD"
-                with m.State("WRITE_HOLD"):
+                    m.next = "WRITE_S2a"
+                with m.State("WRITE_S2a"):
                     m.next = "WRITE_END"
                 with m.State("WRITE_END"):
                     m.d.sync += [
@@ -131,16 +130,16 @@ class Top(Elaboratable):
                         
                         sram.oe.o.eq(SIG_ASSERT),
                     ]
-                    m.next = "READ_HOLD"
-                with m.State("READ_HOLD"):
-                    m.next = "READ_LOAD"
-                with m.State("READ_LOAD"):
+                    m.next = "READ_S2a"
+                with m.State("READ_S2a"):
+                    m.next = "READ_S2"
+                with m.State("READ_S2"):
                     m.d.sync += [
                         # Data valid read
                         halfWord.eq(sram.d.i[0:16]),
                     ]
-                    m.next = "READ_END"
-                with m.State("READ_END"):
+                    m.next = "READ_S3"
+                with m.State("READ_S3"):
                     m.d.sync += [
                         sram.oe.o.eq(SIG_DEASSERT),
 
