@@ -1,5 +1,16 @@
 from amaranth import Instance
 
+from amaranth.hdl import \
+    Elaboratable, \
+    Module, \
+    Signal, \
+    ClockSignal, \
+    ClockDomain, \
+    Const
+
+from amaranth.lib.cdc import \
+    ResetSynchronizer
+
 from pll_parameters import PLLParams
 
 class ICEPLL(Elaboratable):

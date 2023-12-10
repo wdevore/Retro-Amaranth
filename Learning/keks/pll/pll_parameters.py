@@ -18,6 +18,8 @@ class PLLParams():
         else:
             divf_max = 64
 
+        f_out = 0
+        
         variants = []
         for divr in range(0, 16):
             f_pfd = f_in / (divr + 1)
