@@ -7,22 +7,16 @@ from amaranth.hdl import \
     Module, \
     Array, \
     Signal, \
-    Cat, \
-    Repl, \
     Const
 
 from amaranth.build import \
     Resource,\
-    PinsN, \
-    Attrs
+    PinsN
 
 # In this test we:
-# Cycle over both 256KB banks writing 0x0505 and 0xa0a0
-# 256K half-words = 0x00000 -> 1FFFF
+# Read/Write from Double-Data-Rate Octal SPI PSRAM
+# 256Mb = 32MB => 25 address bits -> 0x0000000 -> 0x1FFFFFF
 # 
-# For each memory location write/read 4 half-words checking that
-# each was written correctly.
-# If a failure occurs then stop and show 2 else show a 1 when complete.
 
 class Top(Elaboratable):
 

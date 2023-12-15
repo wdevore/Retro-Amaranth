@@ -1,4 +1,4 @@
-CODENAME = sram_mem_exercise
+CODENAME = ospi
 CODE = ${CODENAME}.py
 
 PYTHON = python

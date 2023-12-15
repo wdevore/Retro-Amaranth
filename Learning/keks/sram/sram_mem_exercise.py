@@ -7,14 +7,11 @@ from amaranth.hdl import \
     Module, \
     Array, \
     Signal, \
-    Cat, \
-    Repl, \
     Const
 
 from amaranth.build import \
     Resource,\
-    PinsN, \
-    Attrs
+    PinsN
 
 # In this test we:
 # Cycle over both 256KB banks writing 0x0505 and 0xa0a0
