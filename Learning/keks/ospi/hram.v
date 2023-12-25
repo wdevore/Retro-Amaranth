@@ -122,6 +122,7 @@ module hram (
 			end
 
 			if (xfer_ctr == 0) begin
+				// Write
 				adq_do[7:0] <= buffer[31:24];
 				buffer <= {buffer, 8'h00};
 			end
@@ -227,7 +228,6 @@ module hram (
 					end else begin
 						xfer_ctr <= xfer_ctr + 1;
 					end
-
 				end
 			end
 
@@ -250,3 +250,69 @@ module hram (
 	end
 
 endmodule
+
+            // # with m.If(~self.reset):
+            // #     # Global reset is 4 clock cycles with CS active 
+            // #     m.d.sync += [
+            // #         ospi.cs.eq(0),      # Enable chip
+            // #         spi_clk.eq(0),      # Start clock low
+
+            // #         # -------------------------------
+            // #         # 1 = output buffer driver enabled
+            // #         # 0 = buffer output high-Z
+            // #         # -------------------------------
+            // #         # addr/data OE PIN enabled (driving)
+            // #         ospi.adq.oe.eq(0xFFFF),
+            // #         # strobe/mask OE PIN disabled (not driving)
+            // #         ospi.dqsdm.oe.eq(0b00),
+
+            // #         # Data out zeroes
+            // #         ospi.d.o.eq(0x0000),
+
+            // #         xfer_edges.eq(0),       # No edges to count until xfer starts
+            // #         self.ready.eq(0),       # Device/Data isn't ready
+            // #     ]
+            // #     m.next = "RESET"
+
+            // # with m.Elif(self.valid & ~self.ready & fsm.ongoing("IDLE")):
+            // #     m.d.sync += xfer_edges.eq(0) # No edges to count
+            // #     m.next = "INIT"
+
+            // # with m.Elif(~self.valid & self.ready):
+            // #     m.d.sync += self.ready.eq(0) # Data isn't valid yet
+
+            // # with m.Elif(xfer_edges):
+            // #     with m.If(fsm.ongoing("END")):
+            // #         # Set dqs to 00 only at certain transfer edges.
+            // #         with m.If(self.wr_strb[3] & xfer_edges == 4):
+            // #             m.d.sync += ospi.dqsdm.o.eq(0b00)
+            // #         with m.Elif(self.wr_strb[2] & xfer_edges == 3):
+            // #             m.d.sync += ospi.dqsdm.o.eq(0b00)
+            // #         with m.Elif(self.wr_strb[1] & xfer_edges == 2):
+            // #             m.d.sync += ospi.dqsdm.o.eq(0b00)
+            // #         with m.Elif(self.wr_strb[0] & xfer_edges == 1):
+            // #             m.d.sync += ospi.dqsdm.o.eq(0b00)
+            // #         with m.Else():
+            // #             m.d.sync += ospi.dqsdm.o.eq(0b11)
+
+            // #     with m.If(xfer_ctr == 0):
+            // #         m.d.sync += [
+            // #             # Assign buffer to data output
+            // #             ospi.adq.o[0:8].eq(buffer[24:32]),
+            // #             buffer.eq(Cat(0x00, buffer)),
+            // #         ]
+
+            // #     with m.If(xfer_ctr == 1):
+            // #         # Toggle clock
+            // #         spi_clk.eq(~spi_clk),
+
+            // #         m.d.sync += [
+            // #             # Decrement transfer edge count
+            // #             xfer_edges.eq(xfer_edges - 1),
+            // #             # Reset transfer count
+            // #             xfer_ctr.eq(0),
+            // #         ]
+                
+            // #     with m.Else():
+            // #         # Count transfers
+            // #         m.d.sync += xfer_ctr.eq(xfer_ctr + 1)

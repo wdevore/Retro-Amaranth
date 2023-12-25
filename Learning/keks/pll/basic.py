@@ -32,7 +32,7 @@ class Top(Elaboratable):
 
         domainName = "sync"
 
-        outClk = ClockSignal(domainName)
+        outClk = ClockSignal(domainName)    # Access the clock signal from "sync"
         clkDom = ClockDomain(domainName)#, reset_less=True)
         m.domains.sync = clkDom
 

@@ -46,31 +46,19 @@ class HRAM(Elaboratable):
     """
 
     def __init__(self,
-                    clk, reset,
-                    addr, wdata, rdata, ready, valid, wstrb
-                    # adq, dqs, ck, ce, state
+                    reset: Signal,
+                    addr: Signal, wdata: Signal, rdata: Signal,
+                    ready: Signal, valid: Signal, wstrb: Signal
                 ):
         
         # --- Ports ---
-        self.sys_clock = clk
         self.reset     = reset
         self.address   = addr
         self.wr_data   = wdata
         self.rd_data   = rdata
-        self.ready     = ready  # Handshake signal
-        self.valid     = valid  # Handshake signal
+        self.ready     = ready  # Handshake signal to host
+        self.valid     = valid  # Handshake signal from host
         self.wr_strb   = wstrb
-        # ---- Device signals ----
-        # adq   : (I/O) Address and lower data (16 bits) - X8 mode
-        # dqs   : (I/O) Read strobe or Write mask (2 bits)
-        # ck    : (O)   SPI generated clock
-        # cd    : (O)   Chip enable (active low)
-        # ---- State ----
-        # state : (O)   Module state
-        # self.addr_data = adq
-        # self.data      = dqs
-        # self.chip_en   = ce
-        # self.state     = state
 
     def elaborate(self,  platform: Platform) -> Module:
         m = Module()
@@ -78,15 +66,19 @@ class HRAM(Elaboratable):
         # Amaranth positive logic (1 = assert)
         SIG_ASSERT = Const(1, 1)
         SIG_DEASSERT = Const(0, 1)
+        CMD_SYNC_READ = Const(0x00000000, 32)
+        CMD_SYNC_WRITE = Const(0x80000000, 32)
 
         # Buffer to capture 
         buffer = Signal(32)
+
         xfer_edges = Signal(6)
         xfer_ctr = Signal(2)
         xfer_rdy = Signal()
         wait_ctr = Signal(2)
 
-        dqs_c = Signal(3)
+        dqs_ctr = Signal(3)
+        # Active high when any write mask bit is set.
         write = Signal()
 
         spi_clk   = Signal(reset=0)
@@ -96,183 +88,252 @@ class HRAM(Elaboratable):
 
             m.d.comb += [
                 write.eq(self.wr_strb.any()),
-                ospi.clk.eq(self.spi_clk),
+                ospi.clk.eq(spi_clk),
             ]
 
-            with m.FSM(reset="RESET") as fsm:
+            with m.FSM(reset="POWERUP") as fsm:
                 self.fsm = fsm
 
-                with m.If(~self.reset):
-                    m.d.sync += [
-                        # Deassert (Amaranth positive-logic)
-                        ospi.cs_n.eq(SIG_DEASSERT),
-                        spi_clk.eq(0),         # Start clock low
+                with m.State("POWERUP"):
+                    # Device requires anything from 500us to 1ms to
+                    # enter normal operation.
+                    # TODO Calculate delay based on system clock
+                    m.next = "RESET"
 
+                with m.State("RESET"):
+                    # Global reset is 4 clock cycles (8 edges) with CS active 
+                    m.d.sync += [
+                        spi_clk.eq(0), # Setup for rising edge
+                        # 0xFF is read only on the first clock.
+                        buffer.eq(0xFFFFFFFF),  # Preset to F's = Cmd reset
+                        xfer_ctr.eq(0),         # Clear clock transfer counter
+                        ospi.cs.eq(SIG_ASSERT), # Enable chip
                         # -------------------------------
                         # 1 = output buffer driver enabled
                         # 0 = buffer output high-Z
                         # -------------------------------
-                        # addr/data OE PIN enabled (driving)
-                        ospi.adq.oe.o.eq(0xFFFF),
-                        # strobe/mask OE PIN disabled (not driving)
+                        # Begin driving PIN
+                        ospi.adq.oe.eq(0xFFFF),
+                        # strobe/mask OE PIN switch to (not driving)
                         ospi.dqsdm.oe.eq(0b00),
-
-                        # Data out zeroes
-                        ospi.d.o.eq(0x0000),
-
-                        xfer_edges.eq(0),       # No edges to count
-                        self.ready.eq(0),       # Read data isn't valid
                     ]
-                    m.next = "RESET"
+                    m.next = "RESET_COMPLETE"
 
-                with m.Elif(self.valid & ~self.ready & fsm.ongoing("IDLE")):
-                    m.d.sync += xfer_edges.eq(0) # No edges to count
-                    m.next = "INIT"
-
-                with m.Elif(~self.valid & self.ready):
-                    m.d.sync += self.ready.eq(0) # Read data isn't valid
-
-                with m.Elif(xfer_edges):
-                    with m.If(fsm.ongoing("END")):
-                        # Set dqs to 00 only on certain transfer edges.
-                        with m.If(self.wr_strb[3] & xfer_edges == 4):
-                            m.d.sync += ospi.dqsdm.o.eq(0b00)
-                        with m.Elif(self.wr_strb[2] & xfer_edges == 3):
-                            m.d.sync += ospi.dqsdm.o.eq(0b00)
-                        with m.Elif(self.wr_strb[1] & xfer_edges == 2):
-                            m.d.sync += ospi.dqsdm.o.eq(0b00)
-                        with m.Elif(self.wr_strb[0] & xfer_edges == 1):
-                            m.d.sync += ospi.dqsdm.o.eq(0b00)
-                        with m.Else():
-                            m.d.sync += ospi.dqsdm.o.eq(0b11)
-
-                    with m.If(xfer_ctr == 0):
-                        m.d.sync += [
-                            ospi.adq[0:8].eq(buffer[24:32]),
-                            buffer.eq(Cat(0x00, buffer)),
-                        ]
-
-                    with m.If(xfer_ctr == 1):
-                        spi_clk.eq(~spi_clk),
-
-                        m.d.sync += [
-                            xfer_edges.eq(xfer_edges - 1),
-                            xfer_ctr.eq(0),
-                        ]
-                    
+                with m.State("RESET_COMPLETE"):
+                    # Generate 4 clocks complete reset
+                    with m.If(xfer_ctr == 4):
+                        m.next = "IDLE"
                     with m.Else():
-                        m.d.sync += xfer_ctr.eq(xfer_ctr + 1)
-                
-                with m.Else():                   
-                    with m.State("IDLE"):
-                        m.d.sync += self.chip_en.eq(1)
-
-                    with m.State("RESET"):
                         m.d.sync += [
-                            spi_clk.eq(0), # Setup for rising edge
-                            buffer.eq(0xFFFFFFFF),
-                            xfer_edges.eq(8),   # Preset to 8 edges
-                            xfer_ctr.eq(0),     # Clear transfer counter
-                            self.chip_en.eq(1), # Assert CE
-                        ]
-                        m.next = "IDLE"
-
-                    with m.State("INIT"):
-                        m.d.sync += [
-                            spi_clk.eq(0), # Setup for rising edge
-                            # addr/data OE PIN enabled (driving)
-                            ospi.adq.oe.o.eq(0xFFFF),
-                            # strobe/mask OE PIN disabled (not driving)
-                            ospi.dqsdm.oe.eq(0b00),
-                        ]
-                        m.next = "START"
-
-                    with m.State("START"):
-                        m.d.sync += self.chip_en.eq(1) # Assert CE
-                        m.next = "CMD"
-
-                    with m.State("CMD"):
-                        m.d.sync += buffer.eq(Mux(write, 0x800000000, 0x000000000))
-                        # with m.If(write):
-                        #     m.d.sync += buffer.eq(0x800000000)
-                        # with m.Else():
-                        #     m.d.sync += buffer.eq(0x000000000)
-
-                        m.d.sync += [
-                            xfer_edges.eq(2),   # Set to 2 edges
-                            xfer_ctr.eq(0),     # Clear transfer counter
-                        ]
-                        m.next = "ADDR"
-
-                    with m.State("ADDR"):
-                        m.d.sync += [
-                            buffer.eq(Cat(self.address[0:26],0b000000)),
-                            xfer_edges.eq(4),   # Preset to 4 edges
-                            xfer_ctr.eq(0),     # Clear transfer counter
+                            spi_clk.eq(~spi_clk),   # Toggle clock
+                            xfer_ctr.eq(xfer_ctr + 1),
                         ]
 
-                        with m.If(write):
-                            m.next = "WAIT"
-                        with m.Else():
-                            m.d.sync += wait_ctr.eq(0)
-                            m.next = "WAIT_DQS_LOW"
+                with m.State("IDLE"):
+                    m.d.sync += [
+                        # Stop driving PIN
+                        ospi.adq.oe.eq(0xFFFF),
+                        ospi.cs.eq(SIG_ASSERT),   # Put in Stanby mode
+                    ]
 
-                        m.d.sync += [
-                            dqs_c.eq(0),      # Clear strobe/mask counter
-                            xfer_rdy.eq(0),   # Preset to transfer not ready
-                        ]
+                    # Wait for the "valid" signal to start a transfer.
+                    # The "ready" flag is cleared by the host via the
+                    # "valid" flag deasserting.
+                    with m.If(self.valid & ~self.ready):
+                        m.d.sync += xfer_edges.eq(0) # No edges to count
+                        m.next = "INIT"     # Initiate transfer
+                    with m.Elif(~self.valid & self.ready):
+                        # The host has deasserted the "valid" flag, now
+                        # clear "ready" signal and remain in IDLE
+                        # waiting for the "valid" signal.
+                        m.d.sync += self.ready.eq(SIG_DEASSERT)
 
-                    with m.State("WAIT_DQS_LOW"):
-                        m.d.sync += [
-                            spi_clk.eq(~spi_clk),
-                            wait_ctr.eq(wait_ctr + 1),
-                        ]
-                        with m.If(wait_ctr == 2):
-                            m.next = "WAIT"
+                # Initialize for a transfer.
+                with m.State("INIT"):
+                    m.d.sync += [
+                        spi_clk.eq(0), # Setup for a starting rising edge
+                        # addr/data OE PIN switch to (driving)
+                        ospi.adq.oe.eq(0xFFFF),
+                        # strobe/mask OE PIN switch to (not driving)
+                        # We don't want to drive dqs/dm while sending
+                        # instruction + address because we need to
+                        # read the DQ bus for a Rising signal that indicates
+                        # data is ready.
+                        ospi.dqsdm.oe.eq(0b00),
+                    ]
+                    m.next = "START"
 
-                    with m.State("WAIT"):
-                        with m.If(write):
-                            m.d.sync += [
-                                # addr/data OE PIN enabled (driving)
-                                ospi.ad.oe.o.eq(0xFFFF),
-                                # strobe/mask OE PIN enabled (driving)
-                                ospi.dqsdm.oe.eq(0b11),
-                                xfer_edges.eq(8),   # Preset to 8 edges
-                            ]
-                            m.next = "XFER"
-                        with m.Else():
-                            m.d.sync += [
-                                # addr/data OE PIN enabled (driving)
-                                ospi.ad.oe.o.eq(0x0000),
-                                xfer_edges.eq(0),   # No edges
-                            ]
-                            with m.If(ospi.dqsdm.i[0] | xfer_rdy):
-                                m.d.sync += xfer_rdy.eq(1)  # Transfer is ready
-                                with m.If(xfer_ctr == 0):
-                                    m.d.sync += buffer.eq(Cat(ospi.ad[0:8], buffer))
-                                    with m.If(dqs_c == 3):
-                                        m.next = "END"
-                                    m.d.sync += dqs_c.eq(dqs_c + 1)
+                with m.State("START"):
+                    m.d.sync += ospi.cs.eq(0) # Take out of Standby mode
+                    m.next = "CMD"
 
-                            with m.If(xfer_ctr == 1):
-                                m.d.sync += [
-                                    spi_clk.eq(~spi_clk),
-                                    xfer_ctr.eq(0),
-                                ]
-                            with m.Else():
-                                m.d.sync += xfer_ctr.eq(xfer_ctr + 1)
+                # ------------------------------------------
+                # Set command instruction for Read OR Write
+                # ------------------------------------------
+                with m.State("CMD"):
+                    m.d.sync += [
+                        buffer.eq(Mux(write, CMD_SYNC_WRITE, CMD_SYNC_READ)),
+                    ]
+                    m.next = "CMD_INSTR"
 
-                    with m.State("XFER"):
-                        with m.If(write):
-                            m.d.sync += buffer.eq(self.wr_data)
-                        m.d.sync += xfer_edges.eq(4)
-                        m.next = "END"
+                with m.State("CMD_INSTR"):
+                    m.d.sync += [
+                        # Place instruction byte on bus.
+                        ospi.adq.o[0:8].eq(buffer[24:32]),
+                        buffer.eq(Cat(0x00, buffer)),
+                    ]
+                    m.next = "CMD_EDGE_R"
 
-                    with m.State("END"):
-                        m.d.sync += [
-                            self.rd_data.eq(buffer),
-                            self.ready.eq(1),
-                        ]
-                        m.next = "IDLE"
+                with m.State("CMD_EDGE_R"):
+                    m.d.sync += spi_clk.eq(~spi_clk)   # Rise
+                    m.next = "CMD_EDGE_F"
+
+                with m.State("CMD_EDGE_F"):
+                    m.d.sync += spi_clk.eq(~spi_clk)   # Fall
+                    m.next = "ADDR"
+
+                # ------------------------------------------
+                # Address
+                # ------------------------------------------
+                with m.State("ADDR"):
+                    m.d.sync += [
+                        # 31     24  23    16  15      8  7      0  :Verilog right to left
+                        # 000000000__00000000__000000000__00000000
+                        # 0:8        8:17      16:25      24:32     :Amaranth left to right
+                        # Last                            First
+                        ospi.adq.o[0:8].eq(buffer[24:32]),     # MSB's first
+                        xfer_rdy.eq(0),     # Preset to transfer not ready
+                    ]
+                    m.next = "ADDR_EDGE_E1"
+
+                with m.State("ADDR_EDGE_E1"):
+                    m.d.sync += spi_clk.eq(~spi_clk)    # Rising
+                    m.next = "ADDR_EDGE_E2"
+
+                with m.State("ADDR_EDGE_E2"):
+                    m.d.sync += ospi.adq.o[0:8].eq(buffer[16:25]),  # Next byte
+                    m.next = "ADDR_EDGE_E3"
+
+                with m.State("ADDR_EDGE_E3"):
+                    m.d.sync += spi_clk.eq(~spi_clk)    # Falling
+                    m.next = "ADDR_EDGE_E4"
+
+                with m.State("ADDR_EDGE_E4"):
+                    m.d.sync += ospi.adq.o[0:8].eq(buffer[8:17]),  # Next byte
+                    m.next = "ADDR_EDGE_E5"
+
+                with m.State("ADDR_EDGE_E5"):
+                    m.d.sync += spi_clk.eq(~spi_clk)    # Rising
+                    m.next = "ADDR_EDGE_E6"
+
+                with m.State("ADDR_EDGE_E6"):
+                    m.d.sync += ospi.adq.o[0:8].eq(buffer[0:8]),  # Last byte
+                    m.next = "ADDR_EDGE_E7"
+
+                with m.State("ADDR_EDGE_E7"):
+                    m.d.sync += spi_clk.eq(~spi_clk)    # Falling
+                    # =============================
+                    # Read Or Write?
+                    # =============================
+                    with m.If(write):
+                        m.next = "WRITE_XFER"
+                    with m.Else():
+                        m.next = "READ_DQ_WAIT"
+
+                # ------------------------------------------
+                # Read data
+                # ------------------------------------------
+                with m.State("READ_DQ_WAIT"):
+                    m.d.sync += spi_clk.eq(~spi_clk)
+                    # Wait for DQ to transition to High
+                    with m.If(ospi.dqsdm.i[0]):     # DQ0 - Rising
+                        buffer.eq(Cat(ospi.adq.i[0:8], buffer)), # D0 byte
+                        m.next = "READ_XFER"
+
+                    m.next = "READ_DQ_WAIT"
+
+                with m.State("READ_XFER"):
+                    m.d.sync += [
+                        spi_clk.eq(~spi_clk),
+                        buffer.eq(Cat(ospi.adq.i[0:8], buffer)), # D1 byte - Falling
+                    ]
+                    m.next = "READ_XFER_B2"
+
+                with m.State("READ_XFER_B2"):
+                    m.d.sync += [
+                        spi_clk.eq(~spi_clk),
+                        buffer.eq(Cat(ospi.adq.i[0:8], buffer)), # D2 byte - Rising
+                    ]
+                    m.next = "READ_XFER_B3"
+
+                with m.State("READ_XFER_B3"):
+                    m.d.sync += [
+                        spi_clk.eq(~spi_clk),
+                        # D3 byte - Falling
+                        self.rd_data.eq(Cat(ospi.adq.i[0:8], buffer)),
+                    ]
+                    m.next = "END"
+
+                # ------------------------------------------
+                # Write data
+                # ------------------------------------------
+                with m.State("WRITE_XFER"):
+                    m.d.sync += [
+                        # addr/data OE PIN switch to (driving)
+                        ospi.adq.oe.eq(0xFFFF),
+                        # strobe/mask OE PIN switch to (driving)
+                        # Byte is present at DQx = 1 values
+                        # TODO I may use 11 instead of specific masks.
+                        # ospi.dqsdm.oe.eq(0b11),
+                        # Copy data for transmission
+                        buffer.eq(self.wr_data),
+                    ]
+                    m.next = "WRITE_XFER_B1"
+
+                with m.State("WRITE_XFER_B1"):  # D0
+                    m.d.sync += [
+                        spi_clk.eq(~spi_clk),
+                        # 1 = Do not write, 0 = Write
+                        ospi.dqsdm.o.eq(Mux(self.wr_strb[0], 0b01, 0b11)),
+                        ospi.adq.o[0:8].eq(buffer[24:32]),  # - Rising
+                        buffer.eq(Cat(0x00, buffer)),
+                    ]
+                    m.next = "WRITE_XFER_B2"
+
+                with m.State("WRITE_XFER_B2"):  # D1
+                    m.d.sync += [
+                        spi_clk.eq(~spi_clk),
+                        ospi.dqsdm.o.eq(Mux(self.wr_strb[1], 0b10, 0b11)),
+                        ospi.adq.o[0:8].eq(buffer[24:32]),  # - Falling
+                        buffer.eq(Cat(0x00, buffer)),
+                    ]
+                    m.next = "WRITE_XFER_B3"
+
+                with m.State("WRITE_XFER_B3"):  # D2
+                    m.d.sync += [
+                        spi_clk.eq(~spi_clk),
+                        ospi.dqsdm.o.eq(Mux(self.wr_strb[2], 0b01, 0b11)),
+                        ospi.adq.o[0:8].eq(buffer[24:32]),  # - Rising
+                        buffer.eq(Cat(0x00, buffer)),
+                    ]
+                    m.next = "WRITE_XFER_B4"
+
+                with m.State("WRITE_XFER_B4"):  # D3
+                    m.d.sync += [
+                        spi_clk.eq(~spi_clk),
+                        ospi.dqsdm.o.eq(0b11),
+                        ospi.adq.o[0:8].eq(buffer[24:32]),  # - Falling
+                    ]
+                    m.next = "END"
+
+                # ------------------------------------------
+                # End transfer
+                # ------------------------------------------
+                with m.State("END"):
+                    m.d.sync += [
+                        self.ready.eq(SIG_ASSERT),  # Transfer complete
+                        ospi.cs.eq(SIG_DEASSERT),   # End operation
+                    ]
+                    m.next = "IDLE"
 
         return m
