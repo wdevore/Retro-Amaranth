@@ -1,11 +1,11 @@
 from amaranth.build import Platform
-from amaranth import Instance
 
 from amaranth_boards.machdyne_keks import KeksPlatform
 
 from amaranth.hdl import \
     Elaboratable, \
     Module, \
+    Instance, \
     Signal, \
     ClockSignal, \
     ClockDomain, \

@@ -7,7 +7,7 @@ BINPATH = /media/RAMDisk/build
 ROOTPATH = /media/iposthuman/Nihongo/Hardware/
 
 # These paths are for building in a shell. VSCode uses .env file to specify paths.
-PATHS := ${ROOTPATH}amaranth-boards
+PATHS := ${ROOTPATH}amaranth-boards:${ROOTPATH}/Retro-Amaranth/Learning
 
 .PHONY: all
 

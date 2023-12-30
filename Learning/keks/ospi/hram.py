@@ -39,7 +39,7 @@ class HRAM(Elaboratable):
                       The host needs to deassert *valid* to reset
                       the *ready* signal.
         valid : (I)   The signal is active (high) and
-                      indicates the address is correct
+                      indicates the address/data is correct
                       and memory should begin a read/write.
         wstrb : (I)   Write strobe/mask (4 bits)
         ```
@@ -48,7 +48,8 @@ class HRAM(Elaboratable):
     def __init__(self,
                     reset: Signal,
                     addr: Signal, wdata: Signal, rdata: Signal,
-                    ready: Signal, valid: Signal, wstrb: Signal
+                    ready: Signal, valid: Signal, wstrb: Signal,
+                    debug: Signal
                 ):
         
         # --- Ports ---
@@ -56,9 +57,10 @@ class HRAM(Elaboratable):
         self.address   = addr
         self.wr_data   = wdata
         self.rd_data   = rdata
-        self.ready     = ready  # Handshake signal to host
-        self.valid     = valid  # Handshake signal from host
+        self.ready     = ready  # Handshake signal to --> host
+        self.valid     = valid  # Handshake signal from <-- host
         self.wr_strb   = wstrb
+        self.debug = debug
 
     def elaborate(self,  platform: Platform) -> Module:
         m = Module()
@@ -72,12 +74,8 @@ class HRAM(Elaboratable):
         # Buffer to capture 
         buffer = Signal(32)
 
-        xfer_edges = Signal(6)
-        xfer_ctr = Signal(2)
-        xfer_rdy = Signal()
-        wait_ctr = Signal(2)
+        reset_ctr = Signal(3, reset=0)
 
-        dqs_ctr = Signal(3)
         # Active high when any write mask bit is set.
         write = Signal()
 
@@ -95,18 +93,23 @@ class HRAM(Elaboratable):
                 self.fsm = fsm
 
                 with m.State("POWERUP"):
+                    m.d.sync += self.debug.eq(0b0001)
                     # Device requires anything from 500us to 1ms to
                     # enter normal operation.
                     # TODO Calculate delay based on system clock
-                    m.next = "RESET"
+                    with m.If(self.reset):
+                        m.next = "RESET"
+                    with m.Else():
+                        m.next = "POWERUP"
 
                 with m.State("RESET"):
+                    m.d.sync += self.debug.eq(0b0010)
                     # Global reset is 4 clock cycles (8 edges) with CS active 
                     m.d.sync += [
                         spi_clk.eq(0), # Setup for rising edge
                         # 0xFF is read only on the first clock.
                         buffer.eq(0xFFFFFFFF),  # Preset to F's = Cmd reset
-                        xfer_ctr.eq(0),         # Clear clock transfer counter
+                        reset_ctr.eq(0),         # Clear clock transfer counter
                         ospi.cs.eq(SIG_ASSERT), # Enable chip
                         # -------------------------------
                         # 1 = output buffer driver enabled
@@ -116,20 +119,25 @@ class HRAM(Elaboratable):
                         ospi.adq.oe.eq(0xFFFF),
                         # strobe/mask OE PIN switch to (not driving)
                         ospi.dqsdm.oe.eq(0b00),
+                        # Default to non-active
+                        self.ready.eq(SIG_DEASSERT),
                     ]
                     m.next = "RESET_COMPLETE"
 
                 with m.State("RESET_COMPLETE"):
-                    # Generate 4 clocks complete reset
-                    with m.If(xfer_ctr == 4):
+                    m.d.sync += self.debug.eq(0b0011)
+                    # Generate 4 clocks tp complete reset
+                    with m.If(reset_ctr == 4):
                         m.next = "IDLE"
                     with m.Else():
                         m.d.sync += [
                             spi_clk.eq(~spi_clk),   # Toggle clock
-                            xfer_ctr.eq(xfer_ctr + 1),
+                            reset_ctr.eq(reset_ctr + 1),
                         ]
+                        m.next = "RESET_COMPLETE"
 
                 with m.State("IDLE"):
+                    m.d.sync += self.debug.eq(0b0100)
                     m.d.sync += [
                         # Stop driving PIN
                         ospi.adq.oe.eq(0xFFFF),
@@ -140,13 +148,13 @@ class HRAM(Elaboratable):
                     # The "ready" flag is cleared by the host via the
                     # "valid" flag deasserting.
                     with m.If(self.valid & ~self.ready):
-                        m.d.sync += xfer_edges.eq(0) # No edges to count
                         m.next = "INIT"     # Initiate transfer
                     with m.Elif(~self.valid & self.ready):
                         # The host has deasserted the "valid" flag, now
                         # clear "ready" signal and remain in IDLE
                         # waiting for the "valid" signal.
                         m.d.sync += self.ready.eq(SIG_DEASSERT)
+                        m.next = "IDLE"
 
                 # Initialize for a transfer.
                 with m.State("INIT"):
@@ -164,16 +172,14 @@ class HRAM(Elaboratable):
                     m.next = "START"
 
                 with m.State("START"):
-                    m.d.sync += ospi.cs.eq(0) # Take out of Standby mode
+                    m.d.sync += ospi.cs.eq(0) # Start transfer (aka exit standby)
                     m.next = "CMD"
 
                 # ------------------------------------------
                 # Set command instruction for Read OR Write
                 # ------------------------------------------
                 with m.State("CMD"):
-                    m.d.sync += [
-                        buffer.eq(Mux(write, CMD_SYNC_WRITE, CMD_SYNC_READ)),
-                    ]
+                    m.d.sync += buffer.eq(Mux(write, CMD_SYNC_WRITE, CMD_SYNC_READ))
                     m.next = "CMD_INSTR"
 
                 with m.State("CMD_INSTR"):
@@ -190,19 +196,24 @@ class HRAM(Elaboratable):
 
                 with m.State("CMD_EDGE_F"):
                     m.d.sync += spi_clk.eq(~spi_clk)   # Fall
-                    m.next = "ADDR"
+                    m.next = "ADDR_BUFFER"
 
                 # ------------------------------------------
                 # Address
                 # ------------------------------------------
-                with m.State("ADDR"):
+                with m.State("ADDR_BUFFER"):
+                    m.d.sync += [
+                        buffer.eq(self.address),
+                    ]
+                    m.next = "ADDR_ADQ"
+
+                with m.State("ADDR_ADQ"):
                     m.d.sync += [
                         # 31     24  23    16  15      8  7      0  :Verilog right to left
                         # 000000000__00000000__000000000__00000000
                         # 0:8        8:17      16:25      24:32     :Amaranth left to right
                         # Last                            First
                         ospi.adq.o[0:8].eq(buffer[24:32]),     # MSB's first
-                        xfer_rdy.eq(0),     # Preset to transfer not ready
                     ]
                     m.next = "ADDR_EDGE_E1"
 
@@ -249,8 +260,8 @@ class HRAM(Elaboratable):
                     with m.If(ospi.dqsdm.i[0]):     # DQ0 - Rising
                         buffer.eq(Cat(ospi.adq.i[0:8], buffer)), # D0 byte
                         m.next = "READ_XFER"
-
-                    m.next = "READ_DQ_WAIT"
+                    with m.Else():
+                        m.next = "READ_DQ_WAIT"
 
                 with m.State("READ_XFER"):
                     m.d.sync += [
@@ -331,7 +342,7 @@ class HRAM(Elaboratable):
                 # ------------------------------------------
                 with m.State("END"):
                     m.d.sync += [
-                        self.ready.eq(SIG_ASSERT),  # Transfer complete
+                        self.ready.eq(SIG_ASSERT),  # Signal transfer complete
                         ospi.cs.eq(SIG_DEASSERT),   # End operation
                     ]
                     m.next = "IDLE"
