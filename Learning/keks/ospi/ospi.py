@@ -41,7 +41,7 @@ class Top(Elaboratable):
         SIG_DEASSERT = Const(0, 1)
 
         count = Signal(32, reset = 0)
-        powerUpDelay = Signal(4, reset = 0)
+        powerUpDelay = Signal(20, reset = 0)
 
         # Write each data halfword for each SRAM address
         data = [0x12345678, 0x11223344, 0xffff0000, 0x0000ffff]
@@ -100,12 +100,14 @@ class Top(Elaboratable):
         ospi_ready     = Signal()
         ospi_valid     = Signal()
         ospi_wr_strb   = Signal(4)
+        ospi_initng    = Signal()
         ospi_debug     = Signal(4)
 
         m.submodules.hram = hram = HRAM(ospi_reset, ospi_address,
                                         ospi_wr_data, ospi_rd_data,
                                         ospi_ready, ospi_valid,
                                         ospi_wr_strb,
+                                        ospi_initng,
                                         ospi_debug)
         # m.submodules.hramInserter = hramInserter = ResetInserter(ospi_reset)(hram)
 
@@ -146,49 +148,54 @@ class Top(Elaboratable):
 
                 with m.State("POWERUP"):
                     m.d.sync += powerUpDelay.eq(powerUpDelay + 1)
-                    with m.If(debouncer.btn_down_out):
-                        m.next = "RESET"
+                    with m.If(powerUpDelay[19]):
+                        m.d.sync += powerUpDelay.eq(0)
+                        m.next = "POWERUP1"
                     with m.Else():
                         m.next = "POWERUP"
-                    # with m.If(powerUpDelay == 10):
-                    #     m.next = "RESET"
-                    # with m.Else():
-                    #     m.next = "POWERUP"
+
+                with m.State("POWERUP1"):
+                    m.d.sync += debug.eq(Cat(Const(0b0001, 4), ospi_debug))
+                    with m.If(debouncer.btn_down_out):
+                        m.next = "RESET"
+                    with m.Else():
+                        m.next = "POWERUP1"
 
                 with m.State("RESET"):
-                    # Trigger memory reset
-                    m.d.sync += debug.eq(Cat(Const(0b1000, 4), ospi_debug))
-                    with m.If(debouncer.btn_down_out):
-                        m.d.sync += ospi_reset.eq(SIG_ASSERT)
-                        m.next = "RESET_END"
-                    with m.Else():
-                        m.next = "RESET"
-                    # m.next = "RESET_END"
+                    # Trigger hram reset
+                    m.d.sync += ospi_reset.eq(SIG_ASSERT)
+                    m.next = "RESET_END"
 
                 with m.State("RESET_END"):
+                    # Wait for hram to powerup and self reset.
+                    with m.If(~ospi_initng):
+                        # Now apply formal reset
+                        m.d.sync += ospi_reset.eq(SIG_DEASSERT)
+                        m.next = "RESET_END"
+                    with m.Else():
+                        m.next = "WAITING"
+
+                with m.State("WAITING"):
                     m.d.sync += debug.eq(Cat(Const(0b1001, 4), ospi_debug))
-                    m.d.sync += ospi_reset.eq(SIG_DEASSERT)
                     with m.If(debouncer.btn_down_out):
                         m.next = "WRITE_LOC0"
                     with m.Else():
-                        m.next = "RESET_END"
-                    # m.next = "WRITE_LOC0"
+                        m.next = "WAITING"
 
                 # ------------------------------------------------
                 # Write #1
                 # ------------------------------------------------
                 with m.State("WRITE_LOC0"):
-                    m.d.sync += debug.eq(Cat(Const(0b1010, 4), ospi_debug))
                     m.d.sync += [
                         ospi_address.eq(0),
                         ospi_wr_data.eq(mem[0]),
                         ospi_wr_strb.eq(0b1111),    # Write Word (32bits)
                     ]
-                    with m.If(debouncer.btn_down_out):
-                        m.next = "WRITE_VALID0"
-                    with m.Else():
-                        m.next = "WRITE_LOC0"
-                    # m.next = "WRITE_VALID0"
+                    # with m.If(debouncer.btn_down_out):
+                    #     m.next = "WRITE_VALID0"
+                    # with m.Else():
+                    #     m.next = "WRITE_LOC0"
+                    m.next = "WRITE_VALID0"
 
                 with m.State("WRITE_VALID0"):
                     m.d.sync += [
@@ -199,14 +206,14 @@ class Top(Elaboratable):
                     m.next = "WRITE_WAIT0"
 
                 with m.State("WRITE_WAIT0"):
-                    m.d.sync += debug.eq(Cat(Const(0b0001, 4), ospi_debug))
-                    # m.d.sync += pmod_a.o.eq(0b00000001)
-                    # Wait for the module to signal that the transfer
-                    # is complete.
-                    with m.If(~ospi_ready):
-                        m.next = "WRITE_WAIT0"
-                    with m.Else():
+                    # m.d.sync += debug.eq(Cat(Const(0b0001, 4), ospi_debug))
+                    m.d.sync += ospi_valid.eq(SIG_DEASSERT)
+                    # The ospi module signals completion by the rise of the
+                    # "ready" signal.
+                    with m.If(ospi_ready):
                         m.next = "KEY_WAIT0"
+                    with m.Else():
+                        m.next = "WRITE_WAIT0"
 
                 with m.State("KEY_WAIT0"):
                     m.d.sync += debug.eq(Cat(Const(0b0010, 4), ospi_debug))
@@ -236,17 +243,17 @@ class Top(Elaboratable):
                     m.next = "WRITE_WAIT1"
 
                 with m.State("WRITE_WAIT1"):
-                    m.d.sync += debug.eq(Cat(Const(0b0011, 4), ospi_debug))
+                    m.d.sync += ospi_valid.eq(SIG_DEASSERT)
                     # m.d.sync += pmod_a.o.eq(0b00000011)
                     # Wait for the module to signal that the transfer
                     # is complete.
-                    with m.If(~ospi_ready):
-                        m.next = "WRITE_WAIT1"
-                    with m.Else():
+                    with m.If(ospi_ready):
                         m.next = "KEY_WAIT1"
+                    with m.Else():
+                        m.next = "WRITE_WAIT1"
 
                 with m.State("KEY_WAIT1"):
-                    m.d.sync += debug.eq(Cat(Const(0b0100, 4), ospi_debug))
+                    m.d.sync += debug.eq(Cat(Const(0b0011, 4), ospi_debug))
                     # m.d.sync += pmod_a.o.eq(0b00000100)
                     with m.If(debouncer.btn_down_out):
                         m.next = "READ_LOC0"
@@ -272,14 +279,14 @@ class Top(Elaboratable):
                     m.next = "READ_WAIT1"
 
                 with m.State("READ_WAIT1"):
+                    m.d.sync += debug.eq(Cat(Const(0b0100, 4), ospi_debug))
                     # Wait for the module to signal that the transfer
                     # is complete.
-                    with m.If(~ospi_ready):
-                        m.next = "READ_WAIT1"
-                    with m.Else():
+                    with m.If(ospi_ready):
                         m.next = "KEY_WAIT2"
                         m.d.sync += rd_data.eq(ospi_rd_data)
-
+                    with m.Else():
+                        m.next = "READ_WAIT1"
 
                 with m.State("KEY_WAIT2"):
                     m.d.sync += debug.eq(rd_data[0:8])
@@ -330,29 +337,6 @@ class Top(Elaboratable):
                 # ------------------------------------------------
                 # Read 1 location
                 # ------------------------------------------------
-                # with m.State("READ_LOC1"):
-                #     m.d.sync += [
-                #         ospi_address.eq(1),
-                #         ospi_wr_strb.eq(0b0000),
-                #     ]
-                #     m.next = "READ_VALID1"
-
-                # with m.State("READ_VALID1"):
-                #     m.d.sync += [
-                #         # Indicate addr/data is valid
-                #         # We deassert this when "ready" flag Sets.
-                #         ospi_valid.eq(SIG_ASSERT),
-                #     ]
-                #     m.next = "READ_WAIT_V1"
-
-                # with m.State("READ_WAIT_V1"):
-                #     # Wait for the module to signal that the transfer
-                #     # is complete.
-                #     with m.If(~ospi_ready):
-                #         m.next = "READ_WAIT_V1"
-                #     with m.Else():
-                #         m.next = "KEY_WAIT2"
-                #         m.d.sync += rd_data.eq(ospi_rd_data)
 
         return m
 

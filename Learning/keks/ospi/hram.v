@@ -112,7 +112,7 @@ module hram (
 			ready <= 0;
 
 		end else if (xfer_edges) begin
-
+			// 1 = Do not write, 0 = Write
 			if (state == STATE_END) begin
 				if (wstrb[3] && xfer_edges == 4) dqs_do <= 2'b00;
 				else if (wstrb[2] && xfer_edges == 3) dqs_do <= 2'b00;
@@ -122,13 +122,13 @@ module hram (
 			end
 
 			if (xfer_ctr == 0) begin
-				// Write
+				// Write Upper byte
 				adq_do[7:0] <= buffer[31:24];
 				buffer <= {buffer, 8'h00};
 			end
 
 			if (xfer_ctr == 1) begin
-
+				// Move to next edge
 				if (ck) begin
 					ck <= 0;
 				end else begin
@@ -183,8 +183,11 @@ module hram (
 				buffer <= { 6'b0, addr[25:0] };
 				xfer_edges <= 4;
 				xfer_ctr <= 0;
-				if (write) 
+				if (write) begin
+					// When the edge count reaches zero
+					// we "resume" to the following state.
 					state <= STATE_WAIT;
+				end
 				else begin
 					state <= STATE_WAIT_DQS_LOW;
 					wait_ctr <= 0;
@@ -193,6 +196,7 @@ module hram (
 				xfer_rdy <= 0;
 			end
 
+			// Reading
 			STATE_WAIT_DQS_LOW: begin
 				if (ck) ck <= 0; else ck <= 1;
 				wait_ctr <= wait_ctr + 1;
@@ -200,10 +204,14 @@ module hram (
 					state <= STATE_WAIT;
 			end
 
+			// Writing
 			STATE_WAIT: begin
 				if (write) begin
+					// 1 = driven, 0 = not-driven
 					adq_oe <= 16'hffff;
 					dqs_oe = 2'b11;
+					// 4 latency + 4 data edges
+					// This places the clock at D4
 					xfer_edges <= 8;
 					state <= STATE_XFER;
 				end else begin
@@ -251,68 +259,3 @@ module hram (
 
 endmodule
 
-            // # with m.If(~self.reset):
-            // #     # Global reset is 4 clock cycles with CS active 
-            // #     m.d.sync += [
-            // #         ospi.cs.eq(0),      # Enable chip
-            // #         spi_clk.eq(0),      # Start clock low
-
-            // #         # -------------------------------
-            // #         # 1 = output buffer driver enabled
-            // #         # 0 = buffer output high-Z
-            // #         # -------------------------------
-            // #         # addr/data OE PIN enabled (driving)
-            // #         ospi.adq.oe.eq(0xFFFF),
-            // #         # strobe/mask OE PIN disabled (not driving)
-            // #         ospi.dqsdm.oe.eq(0b00),
-
-            // #         # Data out zeroes
-            // #         ospi.d.o.eq(0x0000),
-
-            // #         xfer_edges.eq(0),       # No edges to count until xfer starts
-            // #         self.ready.eq(0),       # Device/Data isn't ready
-            // #     ]
-            // #     m.next = "RESET"
-
-            // # with m.Elif(self.valid & ~self.ready & fsm.ongoing("IDLE")):
-            // #     m.d.sync += xfer_edges.eq(0) # No edges to count
-            // #     m.next = "INIT"
-
-            // # with m.Elif(~self.valid & self.ready):
-            // #     m.d.sync += self.ready.eq(0) # Data isn't valid yet
-
-            // # with m.Elif(xfer_edges):
-            // #     with m.If(fsm.ongoing("END")):
-            // #         # Set dqs to 00 only at certain transfer edges.
-            // #         with m.If(self.wr_strb[3] & xfer_edges == 4):
-            // #             m.d.sync += ospi.dqsdm.o.eq(0b00)
-            // #         with m.Elif(self.wr_strb[2] & xfer_edges == 3):
-            // #             m.d.sync += ospi.dqsdm.o.eq(0b00)
-            // #         with m.Elif(self.wr_strb[1] & xfer_edges == 2):
-            // #             m.d.sync += ospi.dqsdm.o.eq(0b00)
-            // #         with m.Elif(self.wr_strb[0] & xfer_edges == 1):
-            // #             m.d.sync += ospi.dqsdm.o.eq(0b00)
-            // #         with m.Else():
-            // #             m.d.sync += ospi.dqsdm.o.eq(0b11)
-
-            // #     with m.If(xfer_ctr == 0):
-            // #         m.d.sync += [
-            // #             # Assign buffer to data output
-            // #             ospi.adq.o[0:8].eq(buffer[24:32]),
-            // #             buffer.eq(Cat(0x00, buffer)),
-            // #         ]
-
-            // #     with m.If(xfer_ctr == 1):
-            // #         # Toggle clock
-            // #         spi_clk.eq(~spi_clk),
-
-            // #         m.d.sync += [
-            // #             # Decrement transfer edge count
-            // #             xfer_edges.eq(xfer_edges - 1),
-            // #             # Reset transfer count
-            // #             xfer_ctr.eq(0),
-            // #         ]
-                
-            // #     with m.Else():
-            // #         # Count transfers
-            // #         m.d.sync += xfer_ctr.eq(xfer_ctr + 1)

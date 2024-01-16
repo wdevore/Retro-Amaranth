@@ -1,0 +1,87 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Tue Jan 16 03:33:01 2024
+[*]
+[dumpfile] "/media/iposthuman/Nihongo/Hardware/Retro-Amaranth/Learning/keks/ospi/bench.vcd"
+[dumpfile_mtime] "Tue Jan 16 02:30:57 2024"
+[dumpfile_size] 618823
+[savefile] "/media/iposthuman/Nihongo/Hardware/Retro-Amaranth/Learning/keks/ospi/bench.gtkw"
+[timestart] 52421000
+[size] 1897 698
+[pos] -1 0
+*-20.323843 56762000 54500000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] bench.
+[treeopen] bench.top.
+[sst_width] 221
+[signals_width] 272
+[sst_expanded] 1
+[sst_vpaned_height] 172
+@28
+bench.top.clk
+@22
+bench.top.slow_clk
+@28
+bench.top.fsm_state
+@c00024
+bench.top.powerUpDelay[19:0]
+@28
+(0)bench.top.powerUpDelay[19:0]
+(1)bench.top.powerUpDelay[19:0]
+(2)bench.top.powerUpDelay[19:0]
+(3)bench.top.powerUpDelay[19:0]
+(4)bench.top.powerUpDelay[19:0]
+(5)bench.top.powerUpDelay[19:0]
+(6)bench.top.powerUpDelay[19:0]
+(7)bench.top.powerUpDelay[19:0]
+(8)bench.top.powerUpDelay[19:0]
+(9)bench.top.powerUpDelay[19:0]
+(10)bench.top.powerUpDelay[19:0]
+(11)bench.top.powerUpDelay[19:0]
+(12)bench.top.powerUpDelay[19:0]
+(13)bench.top.powerUpDelay[19:0]
+(14)bench.top.powerUpDelay[19:0]
+(15)bench.top.powerUpDelay[19:0]
+(16)bench.top.powerUpDelay[19:0]
+(17)bench.top.powerUpDelay[19:0]
+(18)bench.top.powerUpDelay[19:0]
+(19)bench.top.powerUpDelay[19:0]
+@1401200
+-group_end
+@28
+bench.top.ospi_initng
+bench.top.ospi_reset
+@22
+bench.top.ospi_address[31:0]
+bench.top.ospi_wr_data[31:0]
+@28
+bench.top.ospi_wr_strb[3:0]
+bench.top.hram.cs
+@200
+-HRAM
+@28
+bench.top.hram.rst
+@24
+bench.top.hram.reset_ctr[3:0]
+@28
+bench.top.hram.fsm_state
+[color] 3
+bench.top.hram.spi_clk
+bench.top.hram.cs
+@23
+[color] 2
+bench.top.hram.o[7:0]
+@28
+bench.top.hram.ospi_initng
+bench.top.hram.ospi_valid
+bench.top.hram.ospi_ready
+bench.top.hram.ospi_reset
+bench.top.hram.write
+@22
+bench.top.hram.oe[7:0]
+@28
+bench.top.hram.lc_ctr[2:0]
+@22
+bench.top.hram.ospi_address[31:0]
+bench.top.hram.buffer[31:0]
+[pattern_trace] 1
+[pattern_trace] 0
