@@ -168,7 +168,10 @@ class HRAM(Elaboratable):
                         spi_clk.eq(~spi_clk),   # Toggle clock
                         reset_ctr.eq(reset_ctr + 1),
                     ]
-                    m.next = "RESET_COMPLETE"
+                    m.next = "RESET_COMPLETE_H"
+
+            with m.State("RESET_COMPLETE_H"):
+                m.next = "RESET_COMPLETE"
 
             with m.State("IDLE"):
                 m.d.sync += target_hit.eq(0b1100)
@@ -243,13 +246,13 @@ class HRAM(Elaboratable):
             with m.State("CMD_EDGE_F"):
                 m.d.sync += spi_clk.eq(~spi_clk)   # Fall
                 m.d.sync += buffer.eq(self.address)
-                m.next = "ADDR_BUFFER"
+                m.next = "ADDR_A3"
 
             # ------------------------------------------
             # Address
             # ------------------------------------------
             # TODO This can be combined with the next state
-            with m.State("ADDR_BUFFER"):
+            with m.State("ADDR_A3"):
                 m.d.sync += buffer.eq(self.address)
                 m.d.sync += [
                     # 31     24  23    16  15      8  7      0  :Verilog right to left
@@ -258,41 +261,41 @@ class HRAM(Elaboratable):
                     # Last                            First
                     ospi.adq.o[0:8].eq(buffer[24:32]),     # MSB's first
                 ]
-                m.next = "ADDR_ADQ"
+                m.next = "ADDR_A3_R"
 
-            with m.State("ADDR_ADQ"):
-                m.d.sync += spi_clk.eq(~spi_clk)    # A3 Rising
-                m.next = "ADDR_ADQ_ST"
+            with m.State("ADDR_A3_R"):
+                m.d.sync += spi_clk.eq(~spi_clk)
+                m.next = "ADDR_A3_A2"
 
-            with m.State("ADDR_ADQ_ST"):
-                m.next = "ADDR_EDGE_E1"
-
-            with m.State("ADDR_EDGE_E1"):
-                m.d.sync += spi_clk.eq(~spi_clk)    # A3 Rising
-                m.next = "ADDR_EDGE_E2"
-
-            with m.State("ADDR_EDGE_E2"):
+            with m.State("ADDR_A3_A2"):
                 m.d.sync += ospi.adq.o[0:8].eq(buffer[16:25]),  # Next byte
-                m.next = "ADDR_EDGE_E3"
+                m.next = "ADDR_A2_F"
 
-            with m.State("ADDR_EDGE_E3"):
-                m.d.sync += spi_clk.eq(~spi_clk)    # A2 Falling
-                m.next = "ADDR_EDGE_E4"
+            with m.State("ADDR_A2_F"):
+                m.d.sync += spi_clk.eq(~spi_clk)
+                m.next = "ADDR_A2_A1"
 
-            with m.State("ADDR_EDGE_E4"):
+            with m.State("ADDR_A2_A1"):
                 m.d.sync += ospi.adq.o[0:8].eq(buffer[8:17]),  # Next byte
-                m.next = "ADDR_EDGE_E5"
+                m.next = "ADDR_A0_F"
 
-            with m.State("ADDR_EDGE_E5"):
-                m.d.sync += spi_clk.eq(~spi_clk)    # A1 Rising
-                m.next = "ADDR_EDGE_E6"
+            with m.State("ADDR_A0_F"):
+                m.d.sync += spi_clk.eq(~spi_clk)
+                m.next = "ADDR_A0"
 
-            with m.State("ADDR_EDGE_E6"):
+            with m.State("ADDR_A0"):
                 m.d.sync += ospi.adq.o[0:8].eq(buffer[0:8]),  # Last byte
+                m.next = "ADDR_A0_LC"
+
+            with m.State("ADDR_A0_LC"):
+                m.d.sync += spi_clk.eq(~spi_clk)
+                m.next = "ADDR_A0_LC1"
+
+            with m.State("ADDR_A0_LC1"):
                 m.next = "ADDR_EDGE_END"
 
             with m.State("ADDR_EDGE_END"):
-                m.d.sync += spi_clk.eq(~spi_clk)    # A0 Falling
+                m.d.sync += spi_clk.eq(~spi_clk)  # Rising
                 # =============================
                 # Read Or Write?
                 # =============================
@@ -306,8 +309,11 @@ class HRAM(Elaboratable):
                         # strobe/mask OE PIN switch to (driving)
                         ospi.dqsdm.oe.eq(0b11),
                         data_out.eq(0),    # Start with clock (Rising)
+
+                        # Copy write data to buffer
+                        ospi.adq.o[0:8].eq(buffer[0:8]),
                     ]
-                    m.next = "WRITE_LATENCY"
+                    m.next = "ADDR_A0_LC2"
                 with m.Else(): # Read
                     # strobe/mask OE PIN switch to (not driving)
                     # 1 = driven, 0 = not-driven (high-Z)
@@ -356,8 +362,11 @@ class HRAM(Elaboratable):
             # 4 latency edges + 4 Zero bytes = 8 edges.
             # This places the rising edge at D4 where we actually
             # write data.
+            with m.State("ADDR_A0_LC2"):
+                m.next = "WRITE_LATENCY"
+
             with m.State("WRITE_LATENCY"):
-                with m.If(lc_ctr == 7):
+                with m.If(lc_ctr == 4):  # or 7?
                     m.d.sync += [
                         # Setup data for 1st byte (D0 = D4)
                         ospi.adq.o[0:8].eq(buffer[24:32]),

@@ -1,21 +1,21 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Tue Jan 16 03:33:01 2024
+[*] Thu Jan 18 02:54:28 2024
 [*]
 [dumpfile] "/media/iposthuman/Nihongo/Hardware/Retro-Amaranth/Learning/keks/ospi/bench.vcd"
-[dumpfile_mtime] "Tue Jan 16 02:30:57 2024"
-[dumpfile_size] 618823
+[dumpfile_mtime] "Thu Jan 18 02:51:34 2024"
+[dumpfile_size] 618891
 [savefile] "/media/iposthuman/Nihongo/Hardware/Retro-Amaranth/Learning/keks/ospi/bench.gtkw"
-[timestart] 52421000
-[size] 1897 698
-[pos] -1 0
-*-20.323843 56762000 54500000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[timestart] 66440000
+[size] 1897 721
+[pos] 0 0
+*-22.323843 81500000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] bench.
 [treeopen] bench.top.
 [sst_width] 221
 [signals_width] 272
 [sst_expanded] 1
-[sst_vpaned_height] 172
+[sst_vpaned_height] 176
 @28
 bench.top.clk
 @22
@@ -56,6 +56,8 @@ bench.top.ospi_wr_data[31:0]
 @28
 bench.top.ospi_wr_strb[3:0]
 bench.top.hram.cs
+@23
+bench.top.mem0[31:0]
 @200
 -HRAM
 @28
@@ -67,7 +69,7 @@ bench.top.hram.fsm_state
 [color] 3
 bench.top.hram.spi_clk
 bench.top.hram.cs
-@23
+@22
 [color] 2
 bench.top.hram.o[7:0]
 @28
